@@ -46,23 +46,29 @@ const MESSAGE_CATEGORIES: MessageCategory[] = [
     messages: [
       { 
         label: 'INTRO', 
-        content: '🔈 [L00b]: "Senhoras, senhores e... Tex. Bem-vindos ao tutorial da fase 2. Enquanto vocês recebiam ordens, eu escavei a Deep Web corporativa."' 
+        content: ['> Senhoras, senhores e... Tex.',
+                  '> Bem-vindos ao tutorial da fase 2.',
+                  '> Enquanto vocês recebiam ordens, eu escavei a Deep Web corporativa.' ]
       },
       { 
         label: 'DESTINO', 
-        content: '🏙️ DESTINO: Porto das Cinzas. Um lixão industrial emancipado. A lei é privada; seus distintivos da Ordem valem menos que criptomoeda falida.' 
+        content: ['> DESTINO: Porto das Cinzas. Um lixão industrial emancipado.', 
+                  '> A lei é privada; seus distintivos da Ordem valem menos que criptomoeda falida.' ]
       },
       { 
         label: 'ALVO', 
-        content: '🎯 ALVO: Victor Krov, vulgo "O Curador". Garoto rico, viciado em alquimia. Ele conecta a Elite Ocultista com fornecedores de carne.' 
+        content: ['> ALVO: Victor Krov, vulgo "O Curador". Garoto rico, viciado em alquimia.',
+                  '> Ele conecta a Elite Ocultista com fornecedores de carne.']
       },
       { 
         label: 'MISSÃO', 
-        content: '💼 A MISSÃO: Krov está na Galeria "Vazio Tangível" com uma Maleta Prateada. A chave para a Ilha do Maestro é biológica e está lá dentro.' 
+        content: ['> A MISSÃO: Krov está na Galeria "Vazio Tangível" com uma Maleta Prateada.',
+                  '> A chave para a Ilha do Maestro é biológica e está lá dentro.'] 
       },
       { 
         label: 'PLANO', 
-        content: '📝 PLANO: Infiltrar, localizar, extrair a maleta (e o dono). Ah, e tentem não morrer. É importante.' 
+        content: ['> PLANO: Infiltrar, localizar, extrair a maleta (e o dono).',
+                  '> Ah, e tentem não morrer. É importante.'] 
       },
     ],
   },
