@@ -7,14 +7,40 @@ import {
   query, 
   orderBy, 
   onSnapshot,
+  addDoc,
+  serverTimestamp,
   Timestamp 
 } from 'firebase/firestore';
+import { Html5Qrcode } from 'html5-qrcode';
 
 interface Message {
   id: string;
   content: string;
   timestamp: Timestamp;
 }
+
+// Mensagens que serão disparadas ao escanear QR codes específicos
+const QR_CODE_MESSAGES: Record<string, string[]> = {
+  'LOOB_MALETA': [
+    '> 🔓 BIOMETRIA DETECTADA...',
+    '> AUTENTICAÇÃO: TOKEN ORGÂNICO VÁLIDO.',
+    '> A maleta está destravada. O conteúdo é seu.'
+  ],
+  'LOOB_ACESSO': [
+    '> 🔑 CÓDIGO DE ACESSO ESCANEADO.',
+    '> Porta desbloqueada. Vocês têm 30 segundos.'
+  ],
+  'LOOB_SEGREDO': [
+    '> 📜 ARQUIVO CRIPTOGRAFADO DECODIFICADO.',
+    '> O Maestro está na Ilha. Coordenadas: -23.5505, -46.6333',
+    '> Boa sorte. Vocês vão precisar.'
+  ],
+  // QR code padrão para qualquer outro código
+  'DEFAULT': [
+    '> 📡 SINAL DESCONHECIDO DETECTADO.',
+    '> Processando dados... Origem não catalogada.'
+  ]
+};
 
 export default function TerminalPage() {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -23,18 +49,22 @@ export default function TerminalPage() {
   const [isTyping, setIsTyping] = useState(false);
   const [bootSequence, setBootSequence] = useState<string[]>([]);
   const [showBootText, setShowBootText] = useState(false);
+  const [isScanning, setIsScanning] = useState(false);
+  const [scannerReady, setScannerReady] = useState(false);
+  const [permissionsGranted, setPermissionsGranted] = useState(false);
+  
   const terminalRef = useRef<HTMLDivElement>(null);
   const lastMessageCountRef = useRef(0);
-
   const vibrationUnlockedRef = useRef(false);
+  const html5QrCodeRef = useRef<Html5Qrcode | null>(null);
+  const scannerContainerRef = useRef<HTMLDivElement>(null);
 
+  // Vibração
   const vibrate = useCallback((pattern: number | number[] = [100, 50, 100]) => {
     try {
       if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
-        // Android pode precisar de padrões mais simples
         const success = navigator.vibrate(pattern);
         if (!success && Array.isArray(pattern)) {
-          // Fallback para vibração simples se o padrão não funcionar
           navigator.vibrate(200);
         }
       }
@@ -43,11 +73,9 @@ export default function TerminalPage() {
     }
   }, []);
 
-  // Desbloquear vibração no primeiro toque (necessário para Android)
   const unlockVibration = useCallback(() => {
     if (!vibrationUnlockedRef.current) {
       vibrationUnlockedRef.current = true;
-      // Vibração curta para "desbloquear" a API no Android
       try {
         if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
           navigator.vibrate(1);
@@ -56,6 +84,111 @@ export default function TerminalPage() {
         // Ignora erro silenciosamente
       }
     }
+  }, []);
+
+  // Solicitar permissões
+  const requestPermissions = useCallback(async () => {
+    try {
+      // Solicitar permissão de notificação (para vibração em background)
+      if ('Notification' in window && Notification.permission === 'default') {
+        await Notification.requestPermission();
+      }
+
+      // Solicitar permissão de câmera
+      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        const stream = await navigator.mediaDevices.getUserMedia({ 
+          video: { facingMode: 'environment' } 
+        });
+        // Liberar a stream após obter permissão
+        stream.getTracks().forEach(track => track.stop());
+      }
+
+      setPermissionsGranted(true);
+      return true;
+    } catch (error) {
+      console.log('Erro ao solicitar permissões:', error);
+      // Mesmo com erro, marcamos como tentado para não bloquear
+      setPermissionsGranted(true);
+      return false;
+    }
+  }, []);
+
+  // Enviar mensagem para o Firestore
+  const sendMessageToFirestore = useCallback(async (content: string) => {
+    try {
+      await addDoc(collection(db, 'messages'), {
+        content: content.trim(),
+        timestamp: serverTimestamp(),
+      });
+    } catch (error) {
+      console.error('Erro ao enviar mensagem:', error);
+    }
+  }, []);
+
+  // Processar QR Code lido
+  const processQRCode = useCallback(async (decodedText: string) => {
+    vibrate([500, 200, 500]);
+    
+    // Encontrar mensagens correspondentes ao QR code
+    const messagesToSend = QR_CODE_MESSAGES[decodedText] || QR_CODE_MESSAGES['DEFAULT'];
+    
+    // Enviar cada mensagem com delay
+    for (let i = 0; i < messagesToSend.length; i++) {
+      await sendMessageToFirestore(messagesToSend[i]);
+      if (i < messagesToSend.length - 1) {
+        await new Promise(resolve => setTimeout(resolve, 800));
+      }
+    }
+  }, [vibrate, sendMessageToFirestore]);
+
+  // Iniciar scanner de QR Code
+  const startScanner = useCallback(async () => {
+    if (!scannerContainerRef.current) return;
+    
+    setIsScanning(true);
+    
+    try {
+      const html5QrCode = new Html5Qrcode('qr-reader');
+      html5QrCodeRef.current = html5QrCode;
+      
+      await html5QrCode.start(
+        { facingMode: 'environment' }, // Câmera traseira
+        {
+          fps: 10,
+          qrbox: { width: 250, height: 250 },
+        },
+        async (decodedText) => {
+          // QR Code lido com sucesso
+          await stopScanner();
+          await processQRCode(decodedText);
+        },
+        () => {
+          // Erro de leitura (ignorar, continua tentando)
+        }
+      );
+      
+      setScannerReady(true);
+    } catch (error) {
+      console.error('Erro ao iniciar scanner:', error);
+      setIsScanning(false);
+      
+      // Mostrar mensagem de erro no terminal
+      await sendMessageToFirestore('> ⚠️ ERRO: Câmera não disponível ou permissão negada.');
+    }
+  }, [processQRCode, sendMessageToFirestore]);
+
+  // Parar scanner
+  const stopScanner = useCallback(async () => {
+    if (html5QrCodeRef.current) {
+      try {
+        await html5QrCodeRef.current.stop();
+        html5QrCodeRef.current = null;
+      } catch (error) {
+        console.log('Erro ao parar scanner:', error);
+      }
+    }
+    setIsScanning(false);
+    setScannerReady(false);
   }, []);
 
   const enterFullscreen = useCallback(() => {
@@ -95,23 +228,18 @@ export default function TerminalPage() {
     setShowBootText(true);
   }, []);
 
-  
-  const handleBoot = useCallback(() => {
-    // Primeiro desbloqueia a vibração (necessário para Android)
+  const handleBoot = useCallback(async () => {
     unlockVibration();
-    
-    // Vibração de feedback ao iniciar
     vibrate([200, 100, 200]);
     
-    // Tenta entrar em fullscreen
-    enterFullscreen();
+    // Solicitar permissões após interação do usuário
+    await requestPermissions();
     
-    // Inicia o terminal
+    enterFullscreen();
     setIsBooted(true);
     runBootSequence();
-  }, [vibrate, unlockVibration, enterFullscreen, runBootSequence]);
+  }, [vibrate, unlockVibration, requestPermissions, enterFullscreen, runBootSequence]);
 
-  
   const typeMessage = useCallback(async (messageId: string, content: string) => {
     setIsTyping(true);
     let typed = '';
@@ -119,8 +247,6 @@ export default function TerminalPage() {
     for (let i = 0; i < content.length; i++) {
       typed += content[i];
       setDisplayedMessages(prev => new Map(prev).set(messageId, typed));
-      
-      
       const delay = content[i] === ' ' ? 20 : Math.random() * 30 + 15;
       await new Promise(resolve => setTimeout(resolve, delay));
     }
@@ -128,14 +254,13 @@ export default function TerminalPage() {
     setIsTyping(false);
   }, []);
 
-  
   const scrollToBottom = useCallback(() => {
     if (terminalRef.current) {
       terminalRef.current.scrollTop = terminalRef.current.scrollHeight;
     }
   }, []);
 
-  
+  // Listener de mensagens do Firestore
   useEffect(() => {
     if (!isBooted) return;
 
@@ -155,21 +280,13 @@ export default function TerminalPage() {
         });
       });
 
-      
       if (newMessages.length > lastMessageCountRef.current && lastMessageCountRef.current > 0) {
         const latestMessage = newMessages[newMessages.length - 1];
-        
-        // Vibração de alerta para nova mensagem
         vibrate([300, 100, 300]);
-        
-        
         document.body.classList.add('flash-effect');
         setTimeout(() => document.body.classList.remove('flash-effect'), 150);
-        
-        
         typeMessage(latestMessage.id, latestMessage.content);
       } else if (newMessages.length > 0 && lastMessageCountRef.current === 0) {
-        
         newMessages.forEach(msg => {
           setDisplayedMessages(prev => new Map(prev).set(msg.id, msg.content));
         });
@@ -182,12 +299,20 @@ export default function TerminalPage() {
     return () => unsubscribe();
   }, [isBooted, vibrate, typeMessage]);
 
-  
+  // Scroll automático
   useEffect(() => {
     scrollToBottom();
   }, [messages, displayedMessages, bootSequence, scrollToBottom]);
 
-  
+  // Cleanup do scanner ao desmontar
+  useEffect(() => {
+    return () => {
+      if (html5QrCodeRef.current) {
+        html5QrCodeRef.current.stop().catch(() => {});
+      }
+    };
+  }, []);
+
   const formatTime = (timestamp: Timestamp) => {
     if (!timestamp) return '';
     const date = timestamp.toDate();
@@ -198,7 +323,7 @@ export default function TerminalPage() {
     });
   };
 
-  
+  // Tela de Boot
   if (!isBooted) {
     return (
       <div className="boot-screen crt-screen">
@@ -230,14 +355,38 @@ export default function TerminalPage() {
         <p className="mt-8 text-glow-cyan text-sm opacity-70">
           Toque para estabelecer link seguro
         </p>
+        <p className="mt-2 text-gray-500 text-xs">
+          (Permissões de câmera e notificação serão solicitadas)
+        </p>
       </div>
     );
   }
 
-  
+  // Terminal Principal
   return (
     <div className="crt-screen">
       <div className="static-noise" />
+      
+      {/* Modal do Scanner de QR Code */}
+      {isScanning && (
+        <div className="scanner-overlay">
+          <div className="scanner-container">
+            <div className="scanner-header">
+              <span className="text-glow-cyan">📷 SCANNER ATIVO</span>
+              <button 
+                onClick={stopScanner}
+                className="scanner-close-btn"
+              >
+                ✕
+              </button>
+            </div>
+            <div id="qr-reader" ref={scannerContainerRef} className="qr-reader-box" />
+            <p className="text-glow text-sm mt-4">
+              Aponte para um QR Code L00B
+            </p>
+          </div>
+        </div>
+      )}
       
       <div ref={terminalRef} className="terminal-container">
         {/* Boot Sequence */}
@@ -281,6 +430,18 @@ export default function TerminalPage() {
           </div>
         )}
       </div>
+
+      {/* Botão de Scanner flutuante */}
+      {showBootText && !isScanning && (
+        <button 
+          onClick={startScanner}
+          className="scan-button"
+          title="Escanear QR Code"
+        >
+          <span className="scan-icon">📷</span>
+          <span className="scan-text">SCAN</span>
+        </button>
+      )}
     </div>
   );
 }
