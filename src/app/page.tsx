@@ -26,9 +26,35 @@ export default function TerminalPage() {
   const terminalRef = useRef<HTMLDivElement>(null);
   const lastMessageCountRef = useRef(0);
 
-  const vibrate = useCallback(() => {
-    if ('vibrate' in navigator) {
-      navigator.vibrate([200, 100, 200]);
+  const vibrationUnlockedRef = useRef(false);
+
+  const vibrate = useCallback((pattern: number | number[] = [100, 50, 100]) => {
+    try {
+      if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+        // Android pode precisar de padrões mais simples
+        const success = navigator.vibrate(pattern);
+        if (!success && Array.isArray(pattern)) {
+          // Fallback para vibração simples se o padrão não funcionar
+          navigator.vibrate(200);
+        }
+      }
+    } catch (error) {
+      console.log('Vibração não suportada:', error);
+    }
+  }, []);
+
+  // Desbloquear vibração no primeiro toque (necessário para Android)
+  const unlockVibration = useCallback(() => {
+    if (!vibrationUnlockedRef.current) {
+      vibrationUnlockedRef.current = true;
+      // Vibração curta para "desbloquear" a API no Android
+      try {
+        if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+          navigator.vibrate(1);
+        }
+      } catch (e) {
+        // Ignora erro silenciosamente
+      }
     }
   }, []);
 
@@ -71,16 +97,19 @@ export default function TerminalPage() {
 
   
   const handleBoot = useCallback(() => {
+    // Primeiro desbloqueia a vibração (necessário para Android)
+    unlockVibration();
     
-    vibrate();
+    // Vibração de feedback ao iniciar
+    vibrate([200, 100, 200]);
     
-    
+    // Tenta entrar em fullscreen
     enterFullscreen();
     
-    
+    // Inicia o terminal
     setIsBooted(true);
     runBootSequence();
-  }, [vibrate, enterFullscreen, runBootSequence]);
+  }, [vibrate, unlockVibration, enterFullscreen, runBootSequence]);
 
   
   const typeMessage = useCallback(async (messageId: string, content: string) => {
@@ -130,8 +159,8 @@ export default function TerminalPage() {
       if (newMessages.length > lastMessageCountRef.current && lastMessageCountRef.current > 0) {
         const latestMessage = newMessages[newMessages.length - 1];
         
-        
-        vibrate();
+        // Vibração de alerta para nova mensagem
+        vibrate([300, 100, 300]);
         
         
         document.body.classList.add('flash-effect');
