@@ -67,31 +67,7 @@ const MESSAGE_CATEGORIES: MessageCategory[] = [
       },
       { 
         label: 'PLANO', 
-        content: ['> PLANO: Infiltrar, localizar, extrair a maleta (e o dono).',
-                  '> Ah, e tentem não morrer. É importante.'] 
-      },
-    ],
-  },
-
-  // ------------------------------------------------------------------
-  // CATEGORIA: Scanner de QR Code
-  // ------------------------------------------------------------------
-  {
-    name: 'Scanner & QR',
-    icon: '📷',
-    messages: [
-      { label: '📷 USE SCANNER', content: '> 📷 USE O SCANNER. Aperte o botão azul no canto da tela.' },
-      { label: 'QR DETECTADO', content: '> QR CODE DETECTADO na área. Escaneie para decodificar.' },
-      { label: 'MALETA QR', content: '> A maleta tem um código biométrico. Escaneie para abrir.' },
-      { label: 'PORTA QR', content: '> Painel de acesso detectado. Use o scanner no código.' },
-      { label: 'ARQUIVO QR', content: '> Documento criptografado. Preciso que escaneie o selo.' },
-      { 
-        label: 'INSTRUÇÕES [3x]', 
-        content: [
-          '> 📷 INSTRUÇÕES DE USO DO SCANNER:',
-          '> 1. Aperte o botão SCAN no canto inferior direito.',
-          '> 2. Aponte a câmera para o QR Code.'
-        ] 
+        content: '📝 PLANO: Infiltrar, localizar, extrair a maleta (e o dono). Ah, e tentem não morrer. É importante.' 
       },
     ],
   },
