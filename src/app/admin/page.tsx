@@ -304,14 +304,23 @@ export default function AdminPage() {
   };
 
   
+  // Calcula o tempo de digitação baseado no tamanho da mensagem
+  // No terminal, cada caractere leva ~30ms em média
+  const calculateTypingTime = (message: string) => {
+    const baseTime = 500; // Buffer inicial
+    const charTime = 30; // ms por caractere
+    return baseTime + (message.length * charTime);
+  };
+
   const sendQuickMessage = async (content: string | string[]) => {
     if (Array.isArray(content)) {
-      
+      // Múltiplas mensagens: espera cada uma terminar antes de enviar a próxima
       for (let i = 0; i < content.length; i++) {
         await sendMessage(content[i]);
         if (i < content.length - 1) {
-          
-          await new Promise(resolve => setTimeout(resolve, 800));
+          // Delay baseado no tamanho da mensagem que acabou de ser enviada
+          const typingDelay = calculateTypingTime(content[i]);
+          await new Promise(resolve => setTimeout(resolve, typingDelay));
         }
       }
     } else {

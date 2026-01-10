@@ -86,6 +86,38 @@ export default function TerminalPage() {
     }
   }, []);
 
+  // Enviar notificação em segundo plano quando a aba não está ativa
+  const sendBackgroundNotification = useCallback((content: string) => {
+    // Verifica se a página está em segundo plano
+    if (typeof document !== 'undefined' && document.hidden) {
+      // Verifica se temos permissão para notificações
+      if ('Notification' in window && Notification.permission === 'granted') {
+        try {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const options: any = {
+            body: content,
+            icon: '/favicon.ico',
+            tag: 'loob-message',
+            requireInteraction: false,
+          };
+
+          const notification = new Notification('📡 L00B LINK', options);
+
+          // Fecha a notificação após 5 segundos
+          setTimeout(() => notification.close(), 5000);
+
+          // Foca na aba quando clicar na notificação
+          notification.onclick = () => {
+            window.focus();
+            notification.close();
+          };
+        } catch (error) {
+          console.log('Erro ao enviar notificação:', error);
+        }
+      }
+    }
+  }, []);
+
   // Solicitar permissões
   const requestPermissions = useCallback(async () => {
     try {
@@ -281,9 +313,15 @@ export default function TerminalPage() {
 
       if (newMessages.length > lastMessageCountRef.current && lastMessageCountRef.current > 0) {
         const latestMessage = newMessages[newMessages.length - 1];
+        
+        // Vibrar e efeito visual (quando aba ativa)
         vibrate([300, 100, 300]);
         document.body.classList.add('flash-effect');
         setTimeout(() => document.body.classList.remove('flash-effect'), 150);
+        
+        // Notificação em segundo plano (quando aba inativa)
+        sendBackgroundNotification(latestMessage.content);
+        
         typeMessage(latestMessage.id, latestMessage.content);
       } else if (newMessages.length > 0 && lastMessageCountRef.current === 0) {
         newMessages.forEach(msg => {
@@ -296,7 +334,7 @@ export default function TerminalPage() {
     });
 
     return () => unsubscribe();
-  }, [isBooted, vibrate, typeMessage]);
+  }, [isBooted, vibrate, typeMessage, sendBackgroundNotification]);
 
   // Scroll automático
   useEffect(() => {
