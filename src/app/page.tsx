@@ -141,38 +141,37 @@ export default function TerminalPage() {
     }
   }, [vibrate, sendMessageToFirestore]);
 
-  // Iniciar scanner de QR Code
-  const startScanner = useCallback(async () => {
-    if (!scannerContainerRef.current) return;
-    
+  // Abrir modal do scanner (a inicialização real acontece via useEffect)
+  const openScanner = useCallback(() => {
     setIsScanning(true);
-    
+  }, []);
+
+  // Inicializar scanner quando o modal abre
+  const initializeScanner = useCallback(async () => {
     try {
+      // Pequeno delay para garantir que o elemento existe no DOM
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
       const html5QrCode = new Html5Qrcode('qr-reader');
       html5QrCodeRef.current = html5QrCode;
       
       await html5QrCode.start(
-        { facingMode: 'environment' }, // Câmera traseira
+        { facingMode: 'environment' },
         {
           fps: 10,
           qrbox: { width: 250, height: 250 },
         },
         async (decodedText) => {
-          // QR Code lido com sucesso
           await stopScanner();
           await processQRCode(decodedText);
         },
-        () => {
-          // Erro de leitura (ignorar, continua tentando)
-        }
+        () => {}
       );
       
       setScannerReady(true);
     } catch (error) {
       console.error('Erro ao iniciar scanner:', error);
       setIsScanning(false);
-      
-      // Mostrar mensagem de erro no terminal
       await sendMessageToFirestore('> ⚠️ ERRO: Câmera não disponível ou permissão negada.');
     }
   }, [processQRCode, sendMessageToFirestore]);
@@ -304,6 +303,13 @@ export default function TerminalPage() {
     scrollToBottom();
   }, [messages, displayedMessages, bootSequence, scrollToBottom]);
 
+  // Inicializar scanner quando o modal abre
+  useEffect(() => {
+    if (isScanning && !scannerReady) {
+      initializeScanner();
+    }
+  }, [isScanning, scannerReady, initializeScanner]);
+
   // Cleanup do scanner ao desmontar
   useEffect(() => {
     return () => {
@@ -431,15 +437,14 @@ export default function TerminalPage() {
         )}
       </div>
 
-      {/* Botão de Scanner flutuante */}
+      {/* Botão de Scanner - Canto Superior Esquerdo */}
       {showBootText && !isScanning && (
         <button 
-          onClick={startScanner}
-          className="scan-button"
+          onClick={openScanner}
+          className="scan-button-terminal"
           title="Escanear QR Code"
         >
-          <span className="scan-icon">📷</span>
-          <span className="scan-text">SCAN</span>
+          📷 SCAN
         </button>
       )}
     </div>

@@ -630,77 +630,61 @@ body {
 }
 
 /* ========================================
-   Floating Scan Button
+   Terminal Scan Button - Top Left
    ======================================== */
 
-.scan-button {
+.scan-button-terminal {
   position: fixed;
-  bottom: 30px;
-  right: 30px;
-  width: 70px;
-  height: 70px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, var(--terminal-cyan), #0088aa);
-  border: 3px solid var(--terminal-cyan);
-  color: var(--terminal-bg);
+  top: 20px;
+  left: 20px;
+  padding: 12px 24px;
+  background: transparent;
+  border: 2px solid var(--terminal-green);
+  color: var(--terminal-green);
+  font-family: "VT323", "Fira Code", monospace;
+  font-size: 1.2rem;
+  letter-spacing: 3px;
+  text-transform: uppercase;
   cursor: pointer;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
   z-index: 150;
   transition: all 0.3s ease;
-  animation: pulse-scan 2s infinite;
-  box-shadow: 0 0 20px rgba(0, 255, 255, 0.4);
+  text-shadow: 0 0 10px var(--terminal-green-glow);
+  box-shadow: 0 0 10px var(--terminal-green-glow),
+    inset 0 0 10px rgba(0, 255, 0, 0.1);
+  animation: pulse-green 2s infinite;
 }
 
-.scan-button:hover {
-  transform: scale(1.1);
-  box-shadow: 0 0 40px rgba(0, 255, 255, 0.8);
+.scan-button-terminal:hover {
+  background: var(--terminal-green);
+  color: var(--terminal-bg);
+  text-shadow: none;
+  box-shadow: 0 0 30px var(--terminal-green-glow),
+    0 0 60px var(--terminal-green-glow);
 }
 
-.scan-button:active {
+.scan-button-terminal:active {
   transform: scale(0.95);
 }
 
-.scan-icon {
-  font-size: 1.8rem;
-  line-height: 1;
-}
-
-.scan-text {
-  font-size: 0.65rem;
-  font-family: "Fira Code", monospace;
-  font-weight: bold;
-  letter-spacing: 1px;
-  margin-top: 2px;
-}
-
-@keyframes pulse-scan {
+@keyframes pulse-green {
   0%, 100% {
-    box-shadow: 0 0 20px rgba(0, 255, 255, 0.4);
+    box-shadow: 0 0 10px var(--terminal-green-glow),
+      inset 0 0 10px rgba(0, 255, 0, 0.1);
   }
   50% {
-    box-shadow: 0 0 40px rgba(0, 255, 255, 0.7),
-      0 0 60px rgba(0, 255, 255, 0.4);
+    box-shadow: 0 0 20px var(--terminal-green-glow),
+      0 0 40px var(--terminal-green-glow),
+      inset 0 0 15px rgba(0, 255, 0, 0.2);
   }
 }
 
 /* Mobile adjustments */
 @media (max-width: 480px) {
-  .scan-button {
-    width: 60px;
-    height: 60px;
-    bottom: 20px;
-    right: 20px;
-  }
-
-  .scan-icon {
-    font-size: 1.5rem;
-  }
-
-  .scan-text {
-    font-size: 0.55rem;
+  .scan-button-terminal {
+    top: 15px;
+    left: 15px;
+    padding: 10px 18px;
+    font-size: 1rem;
   }
 
   .scanner-container {
