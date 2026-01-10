@@ -338,7 +338,7 @@ export default function AdminPage() {
                       onClick={() => sendQuickMessage(quick.content)}
                       disabled={isLoading}
                       className="admin-btn admin-btn-shortcut text-left truncate"
-                      title={quick.content}
+                      title={Array.isArray(quick.content) ? quick.content.join('\n') : quick.content}
                     >
                       {quick.label}
                     </button>
