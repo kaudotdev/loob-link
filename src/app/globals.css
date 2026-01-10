@@ -1,26 +1,526 @@
 @import "tailwindcss";
 
+/* ========================================
+   L00b Terminal - CRT Effects & Hacker Aesthetics
+   ======================================== */
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Color Palette - Cyberpunk Terminal */
+  --terminal-bg: #000000;
+  --terminal-green: #00ff00;
+  --terminal-green-dim: #00aa00;
+  --terminal-green-glow: rgba(0, 255, 0, 0.6);
+  --terminal-amber: #ffb000;
+  --terminal-amber-dim: #cc8800;
+  --terminal-red: #ff0040;
+  --terminal-cyan: #00ffff;
+  --scanline-color: rgba(0, 0, 0, 0.15);
+
+  /* Admin Theme */
+  --admin-bg: #0a0a0a;
+  --admin-surface: #111111;
+  --admin-border: #222222;
+  --admin-accent: #00ff00;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html,
+body {
+  height: 100%;
+  overflow: hidden;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: "VT323", "Fira Code", "Courier New", monospace;
+  background: var(--terminal-bg);
+  color: var(--terminal-green);
+}
+
+/* ========================================
+   CRT Screen Effect - Scanlines
+   ======================================== */
+
+.crt-screen {
+  position: relative;
+  overflow: hidden;
+  background: var(--terminal-bg);
+}
+
+.crt-screen::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    var(--scanline-color) 2px,
+    var(--scanline-color) 4px
+  );
+  pointer-events: none;
+  z-index: 100;
+  animation: scanlines 0.1s linear infinite;
+}
+
+/* Efeito de flickering sutil */
+.crt-screen::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: radial-gradient(
+    ellipse at center,
+    transparent 0%,
+    rgba(0, 0, 0, 0.3) 90%,
+    rgba(0, 0, 0, 0.6) 100%
+  );
+  pointer-events: none;
+  z-index: 99;
+}
+
+@keyframes scanlines {
+  0% {
+    transform: translateY(0);
+  }
+  100% {
+    transform: translateY(4px);
+  }
+}
+
+/* ========================================
+   Text Glow Effect
+   ======================================== */
+
+.text-glow {
+  text-shadow: 0 0 5px var(--terminal-green-glow),
+    0 0 10px var(--terminal-green-glow), 0 0 20px var(--terminal-green-glow),
+    0 0 40px var(--terminal-green-glow);
+}
+
+.text-glow-amber {
+  color: var(--terminal-amber);
+  text-shadow: 0 0 5px rgba(255, 176, 0, 0.6), 0 0 10px rgba(255, 176, 0, 0.6),
+    0 0 20px rgba(255, 176, 0, 0.6);
+}
+
+.text-glow-red {
+  color: var(--terminal-red);
+  text-shadow: 0 0 5px rgba(255, 0, 64, 0.6), 0 0 10px rgba(255, 0, 64, 0.6),
+    0 0 20px rgba(255, 0, 64, 0.6);
+}
+
+.text-glow-cyan {
+  color: var(--terminal-cyan);
+  text-shadow: 0 0 5px rgba(0, 255, 255, 0.6), 0 0 10px rgba(0, 255, 255, 0.6),
+    0 0 20px rgba(0, 255, 255, 0.6);
+}
+
+/* ========================================
+   Typewriter Animation
+   ======================================== */
+
+.typewriter {
+  overflow: hidden;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* Cursor blinking */
+.cursor-blink::after {
+  content: "█";
+  animation: blink 1s step-end infinite;
+}
+
+@keyframes blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+}
+
+/* ========================================
+   Terminal Container
+   ======================================== */
+
+.terminal-container {
+  height: 100vh;
+  width: 100vw;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 20px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--terminal-green) var(--terminal-bg);
+}
+
+.terminal-container::-webkit-scrollbar {
+  width: 8px;
+}
+
+.terminal-container::-webkit-scrollbar-track {
+  background: var(--terminal-bg);
+}
+
+.terminal-container::-webkit-scrollbar-thumb {
+  background: var(--terminal-green-dim);
+  border-radius: 4px;
+}
+
+.terminal-container::-webkit-scrollbar-thumb:hover {
+  background: var(--terminal-green);
+}
+
+/* ========================================
+   Boot Screen Animation
+   ======================================== */
+
+.boot-screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  width: 100vw;
+  background: var(--terminal-bg);
+}
+
+.boot-button {
+  font-family: "VT323", monospace;
+  font-size: 2rem;
+  padding: 20px 60px;
+  background: transparent;
+  border: 3px solid var(--terminal-green);
+  color: var(--terminal-green);
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 4px;
+  transition: all 0.3s ease;
+  animation: pulse-border 2s infinite;
+}
+
+.boot-button:hover {
+  background: var(--terminal-green);
+  color: var(--terminal-bg);
+  box-shadow: 0 0 20px var(--terminal-green-glow),
+    0 0 40px var(--terminal-green-glow), inset 0 0 20px rgba(0, 255, 0, 0.3);
+}
+
+@keyframes pulse-border {
+  0%,
+  100% {
+    box-shadow: 0 0 5px var(--terminal-green-glow);
+  }
+  50% {
+    box-shadow: 0 0 20px var(--terminal-green-glow),
+      0 0 40px var(--terminal-green-glow);
+  }
+}
+
+/* ========================================
+   Message Styles
+   ======================================== */
+
+.message-line {
+  margin-bottom: 12px;
+  font-size: 1.4rem;
+  line-height: 1.6;
+  letter-spacing: 1px;
+}
+
+.message-prompt {
+  color: var(--terminal-amber);
+}
+
+.message-timestamp {
+  color: var(--terminal-green-dim);
+  font-size: 0.9rem;
+}
+
+/* ========================================
+   Admin Panel Styles
+   ======================================== */
+
+.admin-container {
+  min-height: 100vh;
+  max-height: 100vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  background: var(--admin-bg);
+  color: #ffffff;
+  font-family: "Fira Code", monospace;
+  scrollbar-width: thin;
+  scrollbar-color: var(--terminal-green) var(--admin-bg);
+}
+
+.admin-container::-webkit-scrollbar {
+  width: 8px;
+}
+
+.admin-container::-webkit-scrollbar-track {
+  background: var(--admin-bg);
+}
+
+.admin-container::-webkit-scrollbar-thumb {
+  background: var(--terminal-green-dim);
+  border-radius: 4px;
+}
+
+.admin-container::-webkit-scrollbar-thumb:hover {
+  background: var(--terminal-green);
+}
+
+.admin-header {
+  background: linear-gradient(135deg, #0f0f0f 0%, #1a1a2e 100%);
+  border-bottom: 1px solid var(--terminal-green);
+  padding: 20px;
+  text-align: center;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.admin-title {
+  font-size: 2rem;
+  color: var(--terminal-green);
+  text-shadow: 0 0 10px var(--terminal-green-glow);
+  letter-spacing: 8px;
+  text-transform: uppercase;
+}
+
+.admin-panel {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 30px 20px 60px;
+}
+
+.admin-textarea {
+  width: 100%;
+  min-height: 150px;
+  background: var(--admin-surface);
+  border: 2px solid var(--admin-border);
+  border-radius: 8px;
+  color: var(--terminal-green);
+  font-family: "Fira Code", monospace;
+  font-size: 1.1rem;
+  padding: 16px;
+  resize: vertical;
+  transition: border-color 0.3s ease;
+}
+
+.admin-textarea:focus {
+  outline: none;
+  border-color: var(--terminal-green);
+  box-shadow: 0 0 10px var(--terminal-green-glow);
+}
+
+.admin-textarea::placeholder {
+  color: #444;
+}
+
+.admin-btn {
+  font-family: "Fira Code", monospace;
+  font-size: 1rem;
+  padding: 12px 24px;
+  border: 2px solid;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  font-weight: 700;
+}
+
+.admin-btn-primary {
+  background: var(--terminal-green);
+  border-color: var(--terminal-green);
+  color: var(--terminal-bg);
+}
+
+.admin-btn-primary:hover {
+  background: transparent;
+  color: var(--terminal-green);
+  box-shadow: 0 0 20px var(--terminal-green-glow);
+}
+
+.admin-btn-danger {
+  background: transparent;
+  border-color: var(--terminal-red);
+  color: var(--terminal-red);
+}
+
+.admin-btn-danger:hover {
+  background: var(--terminal-red);
+  color: #fff;
+  box-shadow: 0 0 20px rgba(255, 0, 64, 0.6);
+}
+
+.admin-btn-shortcut {
+  background: var(--admin-surface);
+  border-color: var(--admin-border);
+  color: #aaa;
+  font-size: 0.9rem;
+  padding: 10px 16px;
+}
+
+.admin-btn-shortcut:hover {
+  border-color: var(--terminal-cyan);
+  color: var(--terminal-cyan);
+  box-shadow: 0 0 10px rgba(0, 255, 255, 0.4);
+}
+
+/* Category Sections */
+.category-section {
+  background: rgba(0, 255, 255, 0.02);
+  border: 1px solid var(--admin-border);
+  border-radius: 8px;
+  padding: 16px;
+  transition: border-color 0.2s ease;
+}
+
+.category-section:hover {
+  border-color: rgba(0, 255, 255, 0.3);
+}
+
+/* ========================================
+   Glitch Effect (opcional para momentos especiais)
+   ======================================== */
+
+.glitch {
+  animation: glitch 0.3s infinite;
+}
+
+@keyframes glitch {
+  0% {
+    transform: translate(0);
+    text-shadow: -2px 0 var(--terminal-red), 2px 0 var(--terminal-cyan);
+  }
+  20% {
+    transform: translate(-2px, 2px);
+    text-shadow: 2px 0 var(--terminal-red), -2px 0 var(--terminal-cyan);
+  }
+  40% {
+    transform: translate(-2px, -2px);
+  }
+  60% {
+    transform: translate(2px, 2px);
+    text-shadow: -2px 0 var(--terminal-red), 2px 0 var(--terminal-cyan);
+  }
+  80% {
+    transform: translate(0);
+  }
+  100% {
+    transform: translate(0);
+    text-shadow: -2px 0 var(--terminal-red), 2px 0 var(--terminal-cyan);
+  }
+}
+
+/* ========================================
+   Static Noise Effect (background)
+   ======================================== */
+
+.static-noise {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: 98;
+  opacity: 0.03;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+  animation: noise 0.2s infinite;
+}
+
+@keyframes noise {
+  0%,
+  100% {
+    transform: translate(0, 0);
+  }
+  10% {
+    transform: translate(-1%, -1%);
+  }
+  20% {
+    transform: translate(1%, 1%);
+  }
+  30% {
+    transform: translate(-1%, 1%);
+  }
+  40% {
+    transform: translate(1%, -1%);
+  }
+  50% {
+    transform: translate(-1%, 0%);
+  }
+  60% {
+    transform: translate(1%, 0%);
+  }
+  70% {
+    transform: translate(0%, 1%);
+  }
+  80% {
+    transform: translate(0%, -1%);
+  }
+  90% {
+    transform: translate(1%, 1%);
+  }
+}
+
+/* ========================================
+   Loading/Connecting Animation
+   ======================================== */
+
+.loading-dots::after {
+  content: "";
+  animation: dots 1.5s steps(4, end) infinite;
+}
+
+@keyframes dots {
+  0% {
+    content: "";
+  }
+  25% {
+    content: ".";
+  }
+  50% {
+    content: "..";
+  }
+  75% {
+    content: "...";
+  }
+  100% {
+    content: "";
+  }
+}
+
+/* ========================================
+   Screen Flash Effect (on new message)
+   ======================================== */
+
+@keyframes screen-flash {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+    background: rgba(0, 255, 0, 0.05);
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+.flash-effect {
+  animation: screen-flash 0.15s ease-out;
 }
