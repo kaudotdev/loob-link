@@ -34,7 +34,42 @@ interface MessageCategory {
 
 
 
+// Adicione estas novas mensagens às categorias existentes ou substitua a constante MESSAGE_CATEGORIES
+
 const MESSAGE_CATEGORIES: MessageCategory[] = [
+  // ------------------------------------------------------------------
+  // CATEGORIA NOVA: Para o início da sessão (O Briefing no alto-falante)
+  // ------------------------------------------------------------------
+  {
+    name: 'Briefing: Fase 2',
+    icon: '📢',
+    messages: [
+      { 
+        label: 'INTRO', 
+        content: '🔈 [L00b]: "Senhoras, senhores e... Tex. Bem-vindos ao tutorial da fase 2. Enquanto vocês recebiam ordens, eu escavei a Deep Web corporativa."' 
+      },
+      { 
+        label: 'DESTINO', 
+        content: '🏙️ DESTINO: Porto das Cinzas. Um lixão industrial emancipado. A lei é privada; seus distintivos da Ordem valem menos que criptomoeda falida.' 
+      },
+      { 
+        label: 'ALVO', 
+        content: '🎯 ALVO: Victor Krov, vulgo "O Curador". Garoto rico, viciado em alquimia. Ele conecta a Elite Ocultista com fornecedores de carne.' 
+      },
+      { 
+        label: 'MISSÃO', 
+        content: '💼 A MISSÃO: Krov está na Galeria "Vazio Tangível" com uma Maleta Prateada. A chave para a Ilha do Maestro é biológica e está lá dentro.' 
+      },
+      { 
+        label: 'PLANO', 
+        content: '📝 PLANO: Infiltrar, localizar, extrair a maleta (e o dono). Ah, e tentem não morrer. É importante.' 
+      },
+    ],
+  },
+
+  // ------------------------------------------------------------------
+  // CATEGORIAS GERAIS (Mantidas do seu código)
+  // ------------------------------------------------------------------
   {
     name: 'Sistema & Geral',
     icon: '💻',
@@ -47,7 +82,6 @@ const MESSAGE_CATEGORIES: MessageCategory[] = [
       { label: 'PING', content: '...' },
       { label: 'TÉDIO', content: 'Eu preciso de dados. Estou ficando entediado.' },
       { label: 'IRONIA', content: 'Sério que esse é o plano? Fascinante.' },
-      
       { label: 'GRAVANDO', content: '🔴 REC [Salvando evidência em /logs/incriminadores]' },
       { label: 'AFIRMATIVO', content: '> COMANDO ACEITO. Executando.' },
       { label: 'NEGATIVO', content: '> NEGATIVO. Risco inaceitável.' },
@@ -81,7 +115,6 @@ const MESSAGE_CATEGORIES: MessageCategory[] = [
           '🚨 CORRAM. AGORA. NÃO OLHEM PARA TRÁS.'
         ] 
       },
-      
       { label: 'MUNIÇÃO', content: '> TELEMETRIA: Níveis de munição críticos. Economizem.' },
       { label: 'PONTO FRACO', content: '> ANÁLISE ESTRUTURAL: Mire nas juntas/articulações.' },
       { label: 'DANO', content: '⚠️ ALERTA MÉDICO: Hemorragia detectada. Aplique torniquete.' },
@@ -113,50 +146,50 @@ const MESSAGE_CATEGORIES: MessageCategory[] = [
       { label: 'LÓGICA', content: 'Isso desafia a lógica. Eu odeio.' },
     ],
   },
+
+  // ------------------------------------------------------------------
+  // CENAS ESPECÍFICAS (Atualizadas com o Roteiro)
+  // ------------------------------------------------------------------
   {
     name: 'Cena 01: Arsenal (Pompéia)',
     icon: '🔫',
     messages: [
-      { label: 'MENTIRA', content: '[ANÁLISE DE VOZ]: Mentira detectada. Ele tem estoque oculto.' },
-      { label: 'ESTOQUE', content: '> Inventário do Sistema: 12 Fuzis Táticos "Descarte" no Lote 4.' },
-      { label: 'CÓD. OMEGA', content: '> CÓDIGO DE LIBERAÇÃO: OMEGA-7-ZERO' },
-      { label: 'CRÂNIO', content: '> O Artefato... a assinatura de entropia dele é deliciosa. PEGUEM.' },
-      
+      { label: 'MENTIRA', content: '⚠️ O velho está mentindo. Inventário detectado.' },
+      { label: 'DESCARTE 04', content: '> Inventário: Caixote "Descarte 04" contém fuzis sem número de série.' },
+      { label: 'CÓD. OMEGA', content: '> Diga a ele: "Código de Liberação OMEGA-7-ZERO".' },
+      { label: 'CAVEIRA', content: '> E pegue a caveira. A assinatura de entropia dela é... deliciosa.' },
+      // --- Mantidos do anterior ---
       { label: 'OBSOLETO', content: '> Esse terminal roda Windows 98? Que horror.' },
       { label: 'PRESSÃO', content: 'Diga a ele que eu vou apagar o histórico de navegação dele se não colaborar.' },
-      { label: 'GRANADAS', content: '> SUGESTÃO: Aquelas granadas não estão listadas no inventário oficial.' },
     ],
   },
   {
     name: 'Cena 02: Galeria (Infiltração)',
     icon: '🎭',
     messages: [
-      { label: 'LOCALIZAÇÃO', content: '> Triangulando posição do alvo... Galeria Vazio Tangível.' },
-      { label: 'KROV', content: '> ALVO IDENTIFICADO: Victor Krov. Cabelo Neon. Bar.' },
-      { label: 'SEGURANÇA', content: '> ALERTA: 4 Seguranças com submetralhadoras ocultas.' },
-      { label: 'A MALETA', content: '> A maleta tem bloqueador de sinal. Não consigo hackear. Preciso da mão dele.' },
-      { label: 'DISFARCE', content: '> Upload de Identidades Falsas: CONCLUÍDO. Ajam naturalmente.' },
-      { label: 'CHECK-IN', content: '> Hackeando Scanner Ocular... [VERDE]. Bem-vindos.' },
-      
+      { label: 'TRIANGULANDO', content: '> Triangulando Krov... Ele usa uma Intranet Satelital dos Selvagens. Chique.' },
+      { label: 'A CIDADE', content: '> A cidade é um buraco. Polícia Privada K-Sec. Se forem pegos: Compostagem.' },
+      { label: 'DISFARCE', content: '> Identidades falsas carregadas. Vocês são a "Equipe de Avaliação de Risco da Seguradora Aion". Ajam como tal.' },
+      { label: 'KROV', content: '> ALVO VISUAL: Victor Krov. Cabelo Neon. Não olhe diretamente.' },
+      { label: 'SEGURANÇA', content: '> ALERTA: 4 Seguranças. Submetralhadoras ocultas.' },
+      { label: 'A MALETA', content: '> A maleta tem bloqueador de sinal. Preciso de contato físico ou biometria.' },
+      // --- Contexto Extra ---
       { label: 'CRÍTICA', content: '> CRÍTICA DE ARTE: Carros batidos? O conceito de estética humana é falho.' },
       { label: 'ESCUTA', content: '> INTERCEPTANDO: Conversa na mesa 3 sobre "O Maestro".' },
-      { label: 'NÃO TOQUE', content: '> AVISO: Não toquem na exposição. Nível de radiação paranormal baixo.' },
-      { label: 'BOLSO', content: '> DICA: O cartão de acesso está no bolso interno do segurança.' },
     ],
   },
   {
     name: 'Cena 03/04: O Beco & Fim',
     icon: '🌙',
     messages: [
-      { label: 'MSG MAESTRO', content: '> INTERCEPTADO: "Transporte chegou. Saída Norte."' },
-      { label: 'CIBORGUE', content: '⚠️ ANOMALIA: Carne e Máquina fundidas. Mire nas juntas.' },
+      { label: 'MSG MAESTRO', content: '> 📩 INTERCEPTADO: "O transporte chegou. Saída Norte. Traga a chave."' },
+      { label: 'CARDÍACO', content: '⚠️ ALVO EM MOVIMENTO. Frequência cardíaca dele: 140 bpm. Ele vai correr.' },
+      { label: 'BLOQUEIO', content: '> Bloqueando câmeras do corredor em 3... 2... 1. Vocês estão invisíveis.' },
+      { label: 'TOKEN BIO', content: '> Fascinante. Isso é um Token Biológico. Um crachá de carne que emite frequência de "Vida Autorizada".' },
+      { label: 'A BARREIRA', content: '> A barreira da Ilha vaporiza intrusos sem esse órgão.' },
+      // --- Combate Final ---
       { label: 'CEGAR', content: '> HACKEANDO ÓTICA DO INIMIGO... ALVO CEGO.' },
-      { label: 'TOKEN', content: '> ANÁLISE: Isso é um Token Biológico. Um crachá de carne para a Ilha.' },
-      { label: 'OLHO', content: 'Dica: Se matarem ele, levem o olho. Pode ser útil.' },
-      
-      { label: 'CHUVA', content: '> AMBIENTE: Chuva com pH ácido. Sugiro não olhar para cima.' },
       { label: 'FINALIZAR', content: '> PROBABILIDADE DE SOBREVIVÊNCIA DO ALVO: 0%. Finalizem.' },
-      { label: 'A ILHA', content: '> GEOLOCALIZAÇÃO: Destino confirmado. Ilha do Maestro. Sem sinal de retorno.' },
     ],
   },
 ];
