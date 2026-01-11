@@ -259,7 +259,7 @@ export default function TerminalPage() {
 
   const runBootSequence = useCallback(async () => {
     const bootLines = [
-      '> INITIALIZING L00B LINK v2.4.7...',
+      '> INITIALIZING ██████ LINK v2.4.7...',
       '> ESTABLISHING SECURE CONNECTION...',
       '> BYPASSING FIREWALL... [OK]',
       '> DECRYPTING CHANNEL... [OK]',
@@ -404,12 +404,12 @@ export default function TerminalPage() {
         <div className="mb-8 text-center">
           <pre className="text-glow text-sm sm:text-base" style={{ lineHeight: 1.2 }}>
 {`
- ██╗      ██████╗  ██████╗ ██████╗ 
- ██║     ██╔═══██╗██╔═══██╗██╔══██╗
- ██║     ██║   ██║██║   ██║██████╔╝
- ██║     ██║   ██║██║   ██║██╔══██╗
- ███████╗╚██████╔╝╚██████╔╝██████╔╝
- ╚══════╝ ╚═════╝  ╚═════╝ ╚═════╝ 
+ ██╗     
+ ██║     
+ ██║     
+ ██║     
+ ███████╗
+ ╚══════╝ 
 `}
           </pre>
           <p className="text-glow-amber text-xl mt-4 tracking-widest">
@@ -454,7 +454,7 @@ export default function TerminalPage() {
             </div>
             <div id="qr-reader" ref={scannerContainerRef} className="qr-reader-box" />
             <p className="text-glow text-sm mt-4">
-              Aponte para um QR Code L00B
+              Aponte para um QR Code ██████
             </p>
           </div>
         </div>
@@ -484,7 +484,7 @@ export default function TerminalPage() {
             <span className="message-timestamp">
               [{formatTime(message.timestamp)}]
             </span>
-            <span className="message-prompt"> L00B&gt; </span>
+            <span className="message-prompt"> ██████&gt; </span>
             <span className="text-glow typewriter">
               {displayedMessages.get(message.id) || ''}
             </span>
