@@ -24,8 +24,13 @@ const QR_CODE_MESSAGES: Record<string, string[]> = {
   'LOOB_MALETA': [
     '> 🔓 BIOMETRIA DETECTADA...',
     '> AUTENTICAÇÃO: TOKEN ORGÂNICO VÁLIDO.',
-    '> A maleta está destravada. O conteúdo é seu.'
+    '> Conteúdo: Tecido Biológico Humano em Formol.',
+    '> Órgão: Fígado.',
+    '> Assinatura de DNA: Compatível com Victor Krov (99.9% - Gêmeo ou Clone).',
+    '> Função: Token de Acesso. A barreira da Ilha reconhece este DNA como "Autorizado".',
+    '> Status da Tranca: Bloqueio Biométrico. Necessário polegar do Krov para abrir sem detonar.',
   ],
+  
   'LOOB_ACESSO': [
     '> 🔑 CÓDIGO DE ACESSO ESCANEADO.',
     '> Porta desbloqueada. Vocês têm 30 segundos.'
@@ -86,60 +91,83 @@ export default function TerminalPage() {
     }
   }, []);
 
-  // Enviar notificação em segundo plano quando a aba não está ativa
+  // Enviar notificação em segundo plano
   const sendBackgroundNotification = useCallback((content: string) => {
-    // Verifica se a página está em segundo plano
-    if (typeof document !== 'undefined' && document.hidden) {
-      // Verifica se temos permissão para notificações
-      if ('Notification' in window && Notification.permission === 'granted') {
+    // Só envia notificação se a página NÃO está visível
+    const isPageHidden = typeof document !== 'undefined' && 
+      (document.hidden || document.visibilityState === 'hidden');
+    
+    if (!isPageHidden) {
+      return; // Não notifica se o usuário está vendo a página
+    }
+
+    // Verifica se temos permissão para notificações
+    if ('Notification' in window) {
+      console.log('Notification permission:', Notification.permission);
+      
+      if (Notification.permission === 'granted') {
         try {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const options: any = {
-            body: content,
+          const notification = new Notification('📡 L00B LINK', {
+            body: content.replace(/^>\s*/, ''), // Remove o '> ' do início
             icon: '/favicon.ico',
-            tag: 'loob-message',
-            requireInteraction: false,
-          };
+            tag: 'loob-' + Date.now(), // Tag única para cada notificação
+          });
 
-          const notification = new Notification('📡 L00B LINK', options);
-
-          // Fecha a notificação após 5 segundos
-          setTimeout(() => notification.close(), 5000);
+          // Fecha a notificação após 8 segundos
+          setTimeout(() => notification.close(), 8000);
 
           // Foca na aba quando clicar na notificação
           notification.onclick = () => {
             window.focus();
             notification.close();
           };
+          
+          console.log('Notificação enviada:', content);
         } catch (error) {
-          console.log('Erro ao enviar notificação:', error);
+          console.error('Erro ao criar notificação:', error);
         }
+      } else {
+        console.log('Notificação não permitida:', Notification.permission);
       }
+    } else {
+      console.log('Notification API não disponível');
     }
   }, []);
 
   // Solicitar permissões
   const requestPermissions = useCallback(async () => {
     try {
-      // Solicitar permissão de notificação (para vibração em background)
-      if ('Notification' in window && Notification.permission === 'default') {
-        await Notification.requestPermission();
+      // Solicitar permissão de notificação
+      if ('Notification' in window) {
+        console.log('Solicitando permissão de notificação...');
+        const permission = await Notification.requestPermission();
+        console.log('Permissão de notificação:', permission);
+        
+        // Envia notificação de teste se permitido
+        if (permission === 'granted') {
+          new Notification('📡 L00B LINK Conectado', {
+            body: 'Você receberá alertas quando houver novas transmissões.',
+            icon: '/favicon.ico',
+          });
+        }
       }
 
-      // Solicitar permissão de câmera
-      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-        const stream = await navigator.mediaDevices.getUserMedia({ 
-          video: { facingMode: 'environment' } 
-        });
-        // Liberar a stream após obter permissão
-        stream.getTracks().forEach(track => track.stop());
+      // Solicitar permissão de câmera (silenciosamente, sem bloquear)
+      try {
+        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+          const stream = await navigator.mediaDevices.getUserMedia({ 
+            video: { facingMode: 'environment' } 
+          });
+          stream.getTracks().forEach(track => track.stop());
+        }
+      } catch (camError) {
+        console.log('Câmera não disponível:', camError);
       }
 
       setPermissionsGranted(true);
       return true;
     } catch (error) {
       console.log('Erro ao solicitar permissões:', error);
-      // Mesmo com erro, marcamos como tentado para não bloquear
       setPermissionsGranted(true);
       return false;
     }
