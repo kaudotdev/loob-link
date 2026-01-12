@@ -1,26 +1,87 @@
 @import "tailwindcss";
 
-/* ========================================
-   L00b Terminal - CRT Effects & Hacker Aesthetics
-   ======================================== */
+
 
 :root {
-  /* Color Palette - Cyberpunk Terminal */
-  --terminal-bg: #000000;
-  --terminal-green: #00ff00;
-  --terminal-green-dim: #00aa00;
-  --terminal-green-glow: rgba(0, 255, 0, 0.6);
+  
+  --terminal-bg: #050505;
+  --terminal-color: #00ff41;
+  --terminal-dim: rgba(0, 255, 65, 0.2);
+  --terminal-glow: rgba(0, 255, 65, 0.5);
+  
+  
+  --terminal-green: #00ff41;
+  --terminal-green-dim: rgba(0, 255, 65, 0.2);
+  
   --terminal-amber: #ffb000;
-  --terminal-amber-dim: #cc8800;
   --terminal-red: #ff0040;
   --terminal-cyan: #00ffff;
-  --scanline-color: rgba(0, 0, 0, 0.15);
+  
+  --scanline-color: rgba(0, 0, 0, 0.3);
 
-  /* Admin Theme */
-  --admin-bg: #0a0a0a;
-  --admin-surface: #111111;
-  --admin-border: #222222;
-  --admin-accent: #00ff00;
+  
+  --admin-bg: #000000;
+  --admin-surface: #0a0f0a;
+  --admin-border: #1a331a;
+  --admin-border-hover: #00ff41;
+  --admin-text: #00ff41;
+  --admin-text-dim: #008f24;
+}
+
+[data-theme="cyan"] {
+  --terminal-color: #00f3ff;
+  --terminal-dim: rgba(0, 243, 255, 0.2);
+  --terminal-glow: rgba(0, 243, 255, 0.5);
+}
+[data-theme="green"] {
+  --terminal-color: #00ff41;
+  --terminal-dim: rgba(0, 255, 65, 0.3);
+  --terminal-glow: rgba(0, 255, 65, 0.6);
+}
+
+[data-theme="red"] {
+  --terminal-color: #ff003c;
+  --terminal-dim: rgba(255, 0, 60, 0.3);
+  --terminal-glow: rgba(255, 0, 60, 0.6);
+}
+
+[data-theme="amber"] {
+  --terminal-color: #ffb000;
+  --terminal-dim: rgba(255, 176, 0, 0.3);
+  --terminal-glow: rgba(255, 176, 0, 0.6);
+}
+
+
+@keyframes glitch-anim-1 {
+  0% {
+    clip-path: inset(20% 0 80% 0);
+    transform: translate(-2px, 1px);
+  }
+  20% {
+    clip-path: inset(60% 0 10% 0);
+    transform: translate(2px, -1px);
+  }
+  40% {
+    clip-path: inset(40% 0 50% 0);
+    transform: translate(-2px, 2px);
+  }
+  60% {
+    clip-path: inset(80% 0 5% 0);
+    transform: translate(2px, -2px);
+  }
+  80% {
+    clip-path: inset(10% 0 70% 0);
+    transform: translate(-1px, 1px);
+  }
+  100% {
+    clip-path: inset(30% 0 50% 0);
+    transform: translate(1px, -1px);
+  }
+}
+
+.glitch-active {
+  animation: glitch-anim-1 0.2s infinite linear alternate-reverse;
+  filter: hue-rotate(90deg) contrast(1.5);
 }
 
 * {
@@ -41,9 +102,7 @@ body {
   color: var(--terminal-green);
 }
 
-/* ========================================
-   CRT Screen Effect - Scanlines
-   ======================================== */
+
 
 .crt-screen {
   position: relative;
@@ -70,7 +129,7 @@ body {
   animation: scanlines 0.1s linear infinite;
 }
 
-/* Efeito de flickering sutil */
+
 .crt-screen::after {
   content: "";
   position: absolute;
@@ -97,9 +156,7 @@ body {
   }
 }
 
-/* ========================================
-   Text Glow Effect
-   ======================================== */
+
 
 .text-glow {
   text-shadow: 0 0 5px var(--terminal-green-glow),
@@ -125,9 +182,7 @@ body {
     0 0 20px rgba(0, 255, 255, 0.6);
 }
 
-/* ========================================
-   Typewriter Animation
-   ======================================== */
+
 
 .typewriter {
   overflow: hidden;
@@ -135,7 +190,7 @@ body {
   word-break: break-word;
 }
 
-/* Cursor blinking */
+
 .cursor-blink::after {
   content: "█";
   animation: blink 1s step-end infinite;
@@ -151,9 +206,7 @@ body {
   }
 }
 
-/* ========================================
-   Terminal Container
-   ======================================== */
+
 
 .terminal-container {
   height: 100vh;
@@ -182,9 +235,7 @@ body {
   background: var(--terminal-green);
 }
 
-/* ========================================
-   Boot Screen Animation
-   ======================================== */
+
 
 .boot-screen {
   display: flex;
@@ -228,9 +279,7 @@ body {
   }
 }
 
-/* ========================================
-   Message Styles
-   ======================================== */
+
 
 .message-line {
   margin-bottom: 12px;
@@ -248,9 +297,7 @@ body {
   font-size: 0.9rem;
 }
 
-/* ========================================
-   Admin Panel Styles
-   ======================================== */
+
 
 .admin-container {
   min-height: 100vh;
@@ -380,7 +427,7 @@ body {
   box-shadow: 0 0 10px rgba(0, 255, 255, 0.4);
 }
 
-/* Category Sections */
+
 .category-section {
   background: rgba(0, 255, 255, 0.02);
   border: 1px solid var(--admin-border);
@@ -393,9 +440,7 @@ body {
   border-color: rgba(0, 255, 255, 0.3);
 }
 
-/* ========================================
-   Glitch Effect (opcional para momentos especiais)
-   ======================================== */
+
 
 .glitch {
   animation: glitch 0.3s infinite;
@@ -426,9 +471,7 @@ body {
   }
 }
 
-/* ========================================
-   Static Noise Effect (background)
-   ======================================== */
+
 
 .static-noise {
   position: fixed;
@@ -477,9 +520,7 @@ body {
   }
 }
 
-/* ========================================
-   Loading/Connecting Animation
-   ======================================== */
+
 
 .loading-dots::after {
   content: "";
@@ -504,9 +545,7 @@ body {
   }
 }
 
-/* ========================================
-   Screen Flash Effect (on new message)
-   ======================================== */
+
 
 @keyframes screen-flash {
   0% {
@@ -525,9 +564,7 @@ body {
   animation: screen-flash 0.15s ease-out;
 }
 
-/* ========================================
-   QR Scanner Styles
-   ======================================== */
+
 
 .scanner-overlay {
   position: fixed;
@@ -602,7 +639,7 @@ body {
   border: 2px solid var(--terminal-green-dim);
 }
 
-/* html5-qrcode library overrides */
+
 #qr-reader {
   border: none !important;
 }
@@ -629,9 +666,7 @@ body {
   cursor: pointer !important;
 }
 
-/* ========================================
-   Terminal Scan Button - Top Left
-   ======================================== */
+
 
 .scan-button-terminal {
   position: fixed;
@@ -667,18 +702,18 @@ body {
 }
 
 @keyframes pulse-green {
-  0%, 100% {
+  0%,
+  100% {
     box-shadow: 0 0 10px var(--terminal-green-glow),
       inset 0 0 10px rgba(0, 255, 0, 0.1);
   }
   50% {
     box-shadow: 0 0 20px var(--terminal-green-glow),
-      0 0 40px var(--terminal-green-glow),
-      inset 0 0 15px rgba(0, 255, 0, 0.2);
+      0 0 40px var(--terminal-green-glow), inset 0 0 15px rgba(0, 255, 0, 0.2);
   }
 }
 
-/* Mobile adjustments */
+
 @media (max-width: 480px) {
   .scan-button-terminal {
     top: 15px;

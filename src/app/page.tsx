@@ -11,15 +11,24 @@ import {
   serverTimestamp,
   Timestamp 
 } from 'firebase/firestore';
-import { Html5Qrcode } from 'html5-qrcode';
+import { BootScreen } from '@/components/terminal/BootScreen';
+import { AsciiText } from '@/components/terminal/AsciiText';
+import { TerminalOutput } from '@/components/terminal/TerminalOutput';
+import { ScannerModal } from '@/components/terminal/ScannerModal';
+import { ScanButton } from '@/components/terminal/ScanButton';
+import { ActiveMiniGame } from '@/components/terminal/MiniGames';
+import { EffectsLayer } from '@/components/terminal/EffectsLayer';
+import { useSound } from '@/hooks/useSound';
 
 interface Message {
   id: string;
   content: string;
+  type?: 'text' | 'glitch' | 'vibrate' | 'theme' | 'emp' | 'denied' | 'granted' | 'game';
+  payload?: any;
   timestamp: Timestamp;
 }
 
-// Mensagens que serão disparadas ao escanear QR codes específicos
+
 const QR_CODE_MESSAGES: Record<string, string[]> = {
   'LOOB_MALETA': [
     '> 🔓 BIOMETRIA DETECTADA...',
@@ -40,8 +49,7 @@ const QR_CODE_MESSAGES: Record<string, string[]> = {
     '> O Maestro está na Ilha. Coordenadas: -23.5505, -46.6333',
     '> Boa sorte. Vocês vão precisar.'
   ],
-  // QR code padrão para qualquer outro código
-  'DEFAULT': [
+    'DEFAULT': [
     '> 📡 SINAL DESCONHECIDO DETECTADO.',
     '> Processando dados... Origem não catalogada.'
   ]
@@ -49,23 +57,78 @@ const QR_CODE_MESSAGES: Record<string, string[]> = {
 
 export default function TerminalPage() {
   const [messages, setMessages] = useState<Message[]>([]);
+  const [localMessages, setLocalMessages] = useState<Message[]>([]);
   const [isBooted, setIsBooted] = useState(false);
   const [displayedMessages, setDisplayedMessages] = useState<Map<string, string>>(new Map());
   const [isTyping, setIsTyping] = useState(false);
-  const [bootSequence, setBootSequence] = useState<string[]>([]);
+  const [bootSequence, setBootSequence] = useState<(string | React.ReactNode)[]>([]);
   const [showBootText, setShowBootText] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
-  const [scannerReady, setScannerReady] = useState(false);
-  const [permissionsGranted, setPermissionsGranted] = useState(false);
+  const [isGlitching, setIsGlitching] = useState(false);
+  const [activeGame, setActiveGame] = useState<{id: string, type: string, data: any} | null>(null);
   
-  const terminalRef = useRef<HTMLDivElement>(null);
   const lastMessageCountRef = useRef(0);
   const vibrationUnlockedRef = useRef(false);
-  const html5QrCodeRef = useRef<Html5Qrcode | null>(null);
-  const scannerContainerRef = useRef<HTMLDivElement>(null);
+  const { playSound } = useSound();
 
-  // Vibração
-  const vibrate = useCallback((pattern: number | number[] = [100, 50, 100]) => {
+  const typeMessage = useCallback(async (messageId: string, content: string) => {
+    setIsTyping(true);
+    let typed = '';
+    
+    for (let i = 0; i < content.length; i++) {
+      typed += content[i];
+      setDisplayedMessages(prev => new Map(prev).set(messageId, typed));
+      
+            if (content[i] !== ' ') {
+        playSound('keypress');
+      }
+
+      const delay = content[i] === ' ' ? 20 : Math.random() * 30 + 15;
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+    
+    setIsTyping(false);
+  }, [playSound]);
+
+  const addLocalMessage = useCallback((content: string, type: Message['type'] = 'text') => {
+      const newMessage: Message = {
+          id: `local-${Date.now()}-${Math.random()}`,
+          content,
+          type,
+          timestamp: Timestamp.now(),
+          payload: {}
+      };
+      
+      setLocalMessages(prev => [...prev, newMessage]);
+      
+      if (type === 'denied') playSound('access_denied');
+      else if (type === 'granted') playSound('access_granted');
+      else playSound('message_notification');
+      
+      typeMessage(newMessage.id, newMessage.content);
+  }, [playSound, typeMessage]);
+
+  const sendMessageToFirestore = useCallback(async (content: string) => {
+    try {
+      await addDoc(collection(db, 'messages'), {
+        content: content.trim(),
+        timestamp: serverTimestamp(),
+      });
+    } catch (error) {
+      console.error('Erro ao enviar mensagem:', error);
+    }
+  }, []);
+
+  const handleGameResult = useCallback(async (success: boolean) => {
+      setActiveGame(null);
+      if (success) {
+          addLocalMessage(`> [SYSTEM]: PROTOCOLO DE HACKING FINALIZADO COM SUCESSO.`, 'granted');
+      } else {
+          addLocalMessage(`> [SYSTEM]: FALHA NA INCURSÃO.`, 'denied');
+      }
+  }, [addLocalMessage]);
+
+    const vibrate = useCallback((pattern: number | number[] = [100, 50, 100]) => {
     try {
       if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
         const success = navigator.vibrate(pattern);
@@ -86,65 +149,44 @@ export default function TerminalPage() {
           navigator.vibrate(1);
         }
       } catch (e) {
-        // Ignora erro silenciosamente
-      }
+              }
     }
   }, []);
 
-  // Enviar notificação em segundo plano
-  const sendBackgroundNotification = useCallback((content: string) => {
-    // Só envia notificação se a página NÃO está visível
-    const isPageHidden = typeof document !== 'undefined' && 
+    const sendBackgroundNotification = useCallback((content: string) => {
+        const isPageHidden = typeof document !== 'undefined' && 
       (document.hidden || document.visibilityState === 'hidden');
     
     if (!isPageHidden) {
-      return; // Não notifica se o usuário está vendo a página
-    }
+      return;     }
 
-    // Verifica se temos permissão para notificações
-    if ('Notification' in window) {
-      console.log('Notification permission:', Notification.permission);
-      
+        if ('Notification' in window) {
       if (Notification.permission === 'granted') {
         try {
           const notification = new Notification('📡 L00B LINK', {
-            body: content.replace(/^>\s*/, ''), // Remove o '> ' do início
-            icon: '/favicon.ico',
-            tag: 'loob-' + Date.now(), // Tag única para cada notificação
-          });
+            body: content.replace(/^>\s*/, ''),             icon: '/favicon.ico',
+            tag: 'loob-' + Date.now(),           });
 
-          // Fecha a notificação após 8 segundos
-          setTimeout(() => notification.close(), 8000);
+                    setTimeout(() => notification.close(), 8000);
 
-          // Foca na aba quando clicar na notificação
-          notification.onclick = () => {
+                    notification.onclick = () => {
             window.focus();
             notification.close();
           };
           
-          console.log('Notificação enviada:', content);
         } catch (error) {
           console.error('Erro ao criar notificação:', error);
         }
-      } else {
-        console.log('Notificação não permitida:', Notification.permission);
       }
-    } else {
-      console.log('Notification API não disponível');
     }
   }, []);
 
-  // Solicitar permissões
-  const requestPermissions = useCallback(async () => {
+    const requestPermissions = useCallback(async () => {
     try {
-      // Solicitar permissão de notificação
-      if ('Notification' in window) {
-        console.log('Solicitando permissão de notificação...');
+            if ('Notification' in window) {
         const permission = await Notification.requestPermission();
-        console.log('Permissão de notificação:', permission);
         
-        // Envia notificação de teste se permitido
-        if (permission === 'granted') {
+                if (permission === 'granted') {
           new Notification('📡 L00B LINK Conectado', {
             body: 'Você receberá alertas quando houver novas transmissões.',
             icon: '/favicon.ico',
@@ -152,8 +194,7 @@ export default function TerminalPage() {
         }
       }
 
-      // Solicitar permissão de câmera (silenciosamente, sem bloquear)
-      try {
+            try {
         if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
           const stream = await navigator.mediaDevices.getUserMedia({ 
             video: { facingMode: 'environment' } 
@@ -163,92 +204,45 @@ export default function TerminalPage() {
       } catch (camError) {
         console.log('Câmera não disponível:', camError);
       }
-
-      setPermissionsGranted(true);
       return true;
     } catch (error) {
       console.log('Erro ao solicitar permissões:', error);
-      setPermissionsGranted(true);
       return false;
     }
   }, []);
 
-  // Enviar mensagem para o Firestore
-  const sendMessageToFirestore = useCallback(async (content: string) => {
-    try {
-      await addDoc(collection(db, 'messages'), {
-        content: content.trim(),
-        timestamp: serverTimestamp(),
-      });
-    } catch (error) {
-      console.error('Erro ao enviar mensagem:', error);
-    }
-  }, []);
 
-  // Processar QR Code lido
+
+    const [qrCodeMap, setQrCodeMap] = useState<Record<string, string[]>>({});
+
+  
+    useEffect(() => {
+     if (!isBooted) return;
+     const q = query(collection(db, 'qrcodes'));
+     const unsubscribe = onSnapshot(q, (snapshot) => {
+         const codes: Record<string, string[]> = {};
+         snapshot.forEach(doc => {
+             const data = doc.data();
+             codes[data.code] = Array.isArray(data.response) ? data.response : [data.response];
+         });
+                  setQrCodeMap(codes);
+     });
+     return () => unsubscribe();
+  }, [isBooted]);
+
   const processQRCode = useCallback(async (decodedText: string) => {
     vibrate([500, 200, 500]);
     
-    // Encontrar mensagens correspondentes ao QR code
-    const messagesToSend = QR_CODE_MESSAGES[decodedText] || QR_CODE_MESSAGES['DEFAULT'];
+        const messagesToSend = qrCodeMap[decodedText] || QR_CODE_MESSAGES['DEFAULT'];
     
-    // Enviar cada mensagem com delay
-    for (let i = 0; i < messagesToSend.length; i++) {
-      await sendMessageToFirestore(messagesToSend[i]);
-      if (i < messagesToSend.length - 1) {
-        await new Promise(resolve => setTimeout(resolve, 800));
-      }
+    if (messagesToSend) {
+        for (let i = 0; i < messagesToSend.length; i++) {
+        addLocalMessage(messagesToSend[i]);         if (i < messagesToSend.length - 1) {
+            await new Promise(resolve => setTimeout(resolve, 800));
+        }
+        }
     }
-  }, [vibrate, sendMessageToFirestore]);
-
-  // Abrir modal do scanner (a inicialização real acontece via useEffect)
-  const openScanner = useCallback(() => {
-    setIsScanning(true);
-  }, []);
-
-  // Inicializar scanner quando o modal abre
-  const initializeScanner = useCallback(async () => {
-    try {
-      // Pequeno delay para garantir que o elemento existe no DOM
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
-      const html5QrCode = new Html5Qrcode('qr-reader');
-      html5QrCodeRef.current = html5QrCode;
-      
-      await html5QrCode.start(
-        { facingMode: 'environment' },
-        {
-          fps: 10,
-          qrbox: { width: 250, height: 250 },
-        },
-        async (decodedText) => {
-          await stopScanner();
-          await processQRCode(decodedText);
-        },
-        () => {}
-      );
-      
-      setScannerReady(true);
-    } catch (error) {
-      console.error('Erro ao iniciar scanner:', error);
-      setIsScanning(false);
-      await sendMessageToFirestore('> ⚠️ ERRO: Câmera não disponível ou permissão negada.');
-    }
-  }, [processQRCode, sendMessageToFirestore]);
-
-  // Parar scanner
-  const stopScanner = useCallback(async () => {
-    if (html5QrCodeRef.current) {
-      try {
-        await html5QrCodeRef.current.stop();
-        html5QrCodeRef.current = null;
-      } catch (error) {
-        console.log('Erro ao parar scanner:', error);
-      }
-    }
-    setIsScanning(false);
-    setScannerReady(false);
-  }, []);
+  }, [vibrate, addLocalMessage, qrCodeMap]);
 
   const enterFullscreen = useCallback(() => {
     const elem = document.documentElement;
@@ -258,23 +252,13 @@ export default function TerminalPage() {
   }, []);
 
   const runBootSequence = useCallback(async () => {
-    const bootLines = [
+    const bootLines: (string | React.ReactNode)[] = [
       '> INITIALIZING L00B LINK v2.4.7...',
       '> ESTABLISHING SECURE CONNECTION...',
-      '> BYPASSING FIREWALL... [OK]',
-      '> DECRYPTING CHANNEL... [OK]',
       '> HANDSHAKE COMPLETE',
-      '> AWAITING TRANSMISSION...',
       '',
       '████████████████████████████████████████',
-      '█                                      █',
-      '█     ██       ████   ████  ██████     █',
-      '█     ██      ██  ██ ██  ██ ██   ██    █',
-      '█     ██      ██  ██ ██  ██ ██████     █',
-      '█     ██████   ████   ████  ██████     █',
-      '█                                      █',
-      '█           [ LINK ACTIVE ]            █',
-      '█                                      █',
+      <AsciiText key="ascii-link" text="L00B" enableWaves={false} />,
       '████████████████████████████████████████',
       '',
       '> LISTENING ON ENCRYPTED CHANNEL...',
@@ -291,36 +275,15 @@ export default function TerminalPage() {
     unlockVibration();
     vibrate([200, 100, 200]);
     
-    // Solicitar permissões após interação do usuário
-    await requestPermissions();
+        await requestPermissions();
     
     enterFullscreen();
     setIsBooted(true);
     runBootSequence();
+
   }, [vibrate, unlockVibration, requestPermissions, enterFullscreen, runBootSequence]);
 
-  const typeMessage = useCallback(async (messageId: string, content: string) => {
-    setIsTyping(true);
-    let typed = '';
-    
-    for (let i = 0; i < content.length; i++) {
-      typed += content[i];
-      setDisplayedMessages(prev => new Map(prev).set(messageId, typed));
-      const delay = content[i] === ' ' ? 20 : Math.random() * 30 + 15;
-      await new Promise(resolve => setTimeout(resolve, delay));
-    }
-    
-    setIsTyping(false);
-  }, []);
-
-  const scrollToBottom = useCallback(() => {
-    if (terminalRef.current) {
-      terminalRef.current.scrollTop = terminalRef.current.scrollHeight;
-    }
-  }, []);
-
-  // Listener de mensagens do Firestore
-  useEffect(() => {
+    useEffect(() => {
     if (!isBooted) return;
 
     const messagesQuery = query(
@@ -332,23 +295,64 @@ export default function TerminalPage() {
       const newMessages: Message[] = [];
       
       snapshot.forEach((doc) => {
+        const data = doc.data();
         newMessages.push({
           id: doc.id,
-          content: doc.data().content,
-          timestamp: doc.data().timestamp,
+          content: data.content,
+          type: data.type || 'text',
+          payload: data.payload || {},
+          timestamp: data.timestamp,
         });
       });
 
       if (newMessages.length > lastMessageCountRef.current && lastMessageCountRef.current > 0) {
         const latestMessage = newMessages[newMessages.length - 1];
         
-        // Vibrar e efeito visual (quando aba ativa)
-        vibrate([300, 100, 300]);
-        document.body.classList.add('flash-effect');
-        setTimeout(() => document.body.classList.remove('flash-effect'), 150);
-        
-        // Notificação em segundo plano (quando aba inativa)
-        sendBackgroundNotification(latestMessage.content);
+                
+                playSound('message_notification');
+
+                if (latestMessage.type === 'glitch' || latestMessage.type === 'emp') {
+          setIsGlitching(true);
+          const sound = latestMessage.type === 'emp' ? 'emp_blast' : 'glitch_static';
+          playSound(sound);
+          const duration = latestMessage.payload?.duration || 2500;
+          setTimeout(() => setIsGlitching(false), duration);
+          vibrate([100, 50, 100, 50, duration]); 
+        }
+
+        if (latestMessage.type === 'vibrate') {
+          const duration = latestMessage.payload?.duration || 2000;
+          vibrate(duration); 
+          playSound('alarm_proximity');
+        }
+
+        if (latestMessage.type === 'denied') {
+            playSound('access_denied');
+        }
+
+        if (latestMessage.type === 'granted') {
+            playSound('access_granted');
+        }
+
+        if (latestMessage.type === 'game') {
+           setActiveGame({ 
+             id: latestMessage.id, 
+             type: latestMessage.payload.gameType, 
+             data: latestMessage.payload.gameData 
+           });
+           playSound('system_startup'); 
+        }
+
+        if (latestMessage.type === 'theme' && latestMessage.payload?.theme) {
+          document.body.setAttribute('data-theme', latestMessage.payload.theme);
+        }
+
+        if (latestMessage.type !== 'text') {
+           document.body.classList.add('flash-effect');
+           setTimeout(() => document.body.classList.remove('flash-effect'), 500);
+        }
+
+                sendBackgroundNotification(latestMessage.content);
         
         typeMessage(latestMessage.id, latestMessage.content);
       } else if (newMessages.length > 0 && lastMessageCountRef.current === 0) {
@@ -359,159 +363,65 @@ export default function TerminalPage() {
 
       lastMessageCountRef.current = newMessages.length;
       setMessages(newMessages);
-    });
+    }, (error) => {
+      console.error("ERRO NO LISTENER DO TERMINAL:", error);
+          });
 
     return () => unsubscribe();
-  }, [isBooted, vibrate, typeMessage, sendBackgroundNotification]);
+  }, [isBooted, vibrate, typeMessage, sendBackgroundNotification, playSound]);
 
-  // Scroll automático
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages, displayedMessages, bootSequence, scrollToBottom]);
-
-  // Inicializar scanner quando o modal abre
-  useEffect(() => {
-    if (isScanning && !scannerReady) {
-      initializeScanner();
-    }
-  }, [isScanning, scannerReady, initializeScanner]);
-
-  // Cleanup do scanner ao desmontar
-  useEffect(() => {
-    return () => {
-      if (html5QrCodeRef.current) {
-        html5QrCodeRef.current.stop().catch(() => {});
-      }
-    };
-  }, []);
-
-  const formatTime = (timestamp: Timestamp) => {
-    if (!timestamp) return '';
-    const date = timestamp.toDate();
-    return date.toLocaleTimeString('pt-BR', { 
-      hour: '2-digit', 
-      minute: '2-digit',
-      second: '2-digit'
-    });
+    const handleScanCode = async (decodedText: string) => {
+    setIsScanning(false);
+    await processQRCode(decodedText);
   };
 
-  // Tela de Boot
-  if (!isBooted) {
-    return (
-      <div className="boot-screen crt-screen">
-        <div className="static-noise" />
-        
-        <div className="mb-8 text-center">
-          <pre className="text-glow text-sm sm:text-base" style={{ lineHeight: 1.2 }}>
-{`
- ██╗      ██████╗  ██████╗ ██████╗ 
- ██║     ██╔═══██╗██╔═══██╗██╔══██╗
- ██║     ██║   ██║██║   ██║██████╔╝
- ██║     ██║   ██║██║   ██║██╔══██╗
- ███████╗╚██████╔╝╚██████╔╝██████╔╝
- ╚══════╝ ╚═════╝  ╚═════╝ ╚═════╝ 
-`}
-          </pre>
-          <p className="text-glow-amber text-xl mt-4 tracking-widest">
-            [ LINK PROTOCOL v2.4.7 ]
-          </p>
-        </div>
+  const handleScannerError = async (msg: string) => {
+    setIsScanning(false);
+    addLocalMessage(msg, 'denied');
+  };
 
-        <button 
-          onClick={handleBoot}
-          className="boot-button"
-        >
-          ▶ INICIAR CONEXÃO
-        </button>
-
-        <p className="mt-8 text-glow-cyan text-sm opacity-70">
-          Toque para estabelecer link seguro
-        </p>
-        <p className="mt-2 text-gray-500 text-xs">
-          (Permissões de câmera e notificação serão solicitadas)
-        </p>
-      </div>
-    );
+    if (!isBooted) {
+    return <BootScreen onBoot={handleBoot} />;
   }
 
-  // Terminal Principal
+  const allMessages = [...messages, ...localMessages].sort((a, b) => {
+      const ta = a.timestamp?.toMillis ? a.timestamp.toMillis() : 0;
+      const tb = b.timestamp?.toMillis ? b.timestamp.toMillis() : 0;
+      return ta - tb;
+  });
+
   return (
-    <div className="crt-screen">
+    <div className={`crt-screen ${isGlitching ? 'glitch-active' : ''}`}>
       <div className="static-noise" />
+      <EffectsLayer isGlitching={isGlitching} />
       
-      {/* Modal do Scanner de QR Code */}
+      
       {isScanning && (
-        <div className="scanner-overlay">
-          <div className="scanner-container">
-            <div className="scanner-header">
-              <span className="text-glow-cyan">📷 SCANNER ATIVO</span>
-              <button 
-                onClick={stopScanner}
-                className="scanner-close-btn"
-              >
-                ✕
-              </button>
-            </div>
-            <div id="qr-reader" ref={scannerContainerRef} className="qr-reader-box" />
-            <p className="text-glow text-sm mt-4">
-              Aponte para um QR Code L00B
-            </p>
-          </div>
-        </div>
+        <ScannerModal 
+          onClose={() => setIsScanning(false)}
+          onScan={handleScanCode}
+          onError={handleScannerError}
+        />
+      )}
+
+      {activeGame && (
+        <ActiveMiniGame 
+          game={activeGame} 
+          onResult={handleGameResult} 
+        />
       )}
       
-      <div ref={terminalRef} className="terminal-container">
-        {/* Boot Sequence */}
-        {bootSequence.map((line, index) => (
-          <div 
-            key={`boot-${index}`} 
-            className={`message-line ${line.startsWith('>') ? 'text-glow-cyan' : 'text-glow'}`}
-          >
-            {line}
-          </div>
-        ))}
+      <TerminalOutput 
+        messages={allMessages}
+        displayedMessages={displayedMessages}
+        bootSequence={bootSequence}
+        showBootText={showBootText}
+        isTyping={isTyping}
+      />
 
-        {/* Separador */}
-        {showBootText && messages.length > 0 && (
-          <div className="message-line text-glow-amber my-6">
-            ═══════════════════════════════════════
-          </div>
-        )}
-
-        {/* Messages */}
-        {messages.map((message) => (
-          <div key={message.id} className="message-line">
-            <span className="message-timestamp">
-              [{formatTime(message.timestamp)}]
-            </span>
-            <span className="message-prompt"> L00B&gt; </span>
-            <span className="text-glow typewriter">
-              {displayedMessages.get(message.id) || ''}
-            </span>
-            {isTyping && displayedMessages.get(message.id) !== message.content && (
-              <span className="cursor-blink" />
-            )}
-          </div>
-        ))}
-
-        {/* Cursor piscando quando idle */}
-        {!isTyping && showBootText && (
-          <div className="message-line mt-4">
-            <span className="message-prompt">_</span>
-            <span className="cursor-blink text-glow" />
-          </div>
-        )}
-      </div>
-
-      {/* Botão de Scanner - Canto Superior Esquerdo */}
+      
       {showBootText && !isScanning && (
-        <button 
-          onClick={openScanner}
-          className="scan-button-terminal"
-          title="Escanear QR Code"
-        >
-          📷 SCAN
-        </button>
+        <ScanButton onClick={() => setIsScanning(true)} />
       )}
     </div>
   );

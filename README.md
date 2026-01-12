@@ -20,197 +20,130 @@ _Simule um hack no celular do jogador com estética cyberpunk_
 
 ### 🎯 Propósito
 
-Durante as sessões de RPG, eu (o mestre) posso enviar mensagens secretas para o celular de um jogador específico, criando momentos de tensão e imersão. As mensagens aparecem com efeito de digitação (typewriter), fazendo o celular vibrar e dando a sensação de que o personagem está sendo hackeado.
+Durante as sessões de RPG, eu (o mestre) posso enviar mensagens secretas para o celular de um jogador específico, criar minigames de hacking, e triggers sensoriais (vibração/sons), criando momentos de tensão e imersão.
 
 ---
 
 ## ✨ Funcionalidades
 
-### 📱 Terminal do Jogador (`/` ou `/tex`)
+### 📱 Terminal do Jogador (`/`)
 
-- **Estética CRT/Hacker**: Fundo preto, texto verde neon com glow, efeito de scanlines
-- **Tela de Boot**: Animação de inicialização com sequência de "hacking"
-- **Efeito Typewriter**: Mensagens são "digitadas" caractere por caractere
-- **Vibração Tática**: O celular vibra ao receber novas mensagens (padrão: `[200ms, 100ms, 200ms]`)
-- **Tela Cheia**: Entra em fullscreen ao iniciar conexão
-- **Tempo Real**: Sincronização instantânea via Firebase Firestore
+- **Estética CRT/Hacker**: Fundo preto, texto verde neon com glow, efeito de scanlines.
+- **Minigames de Hacking**: Desafios interativos disparados pelo mestre (Descriptografia, Força Bruta, Sinal).
+- **Scanner de QR Code**: Câmera integrada para escanear códigos físicos e revelar segredos (Resultados 100% locais).
+- **Feedback Local**: Falhas de acesso e conquistas pessoais aparecem apenas para o jogador, sem poluir o chat global.
+- **Efeito Typewriter**: Mensagens são "digitadas" caractere por caractere.
+- **Gatilhos Sensoriais**:
+  - 📳 **Vibração Tática**: Padrões de vibração customizáveis.
+  - 🔊 **Sons Imersivos**: Glitch, alarmes, sucesso, e erro.
+  - ⚡ **Efeitos Visuais**: Glitch na tela, Flash, Shake.
 
 ### 🎛️ Painel do Mestre (`/admin`)
 
-- **Interface Dark**: Design minimalista e funcional
-- **Envio de Mensagens**: Textarea para mensagens personalizadas
-- **Atalhos Rápidos**: Botões com frases prontas do L00b:
-  - 👀
-  - "Conectando..."
-  - "⚠️ ACESSO NEGADO"
-  - "🚨 CORRAM. AGORA."
-  - "💀 SISTEMA COMPROMETIDO"
-  - E mais...
-- **Limpar Terminal**: Apaga todas as mensagens (reset entre cenas)
-- **Histórico**: Visualização das mensagens enviadas
+- **Controle Total**: Interface para gerenciar toda a narrativa.
+- **Minigames Panel**: Configure e inicie jogos de hacking para os jogadores.
+  - _Decryption_: Jogador deve adivinhar a senha.
+  - _Brute Force_: Teste de reflexos e timing.
+  - _Signal Tuning_: Encontrar a frequência correta.
+- **Gerenciador de QR Codes**: Crie e edite códigos que os jogadores podem escanear na vida real.
+- **Templates & Mensagens Rápidas**: Banco de mensagens salvas e atalhos de um clique.
+- **Gatilhos de Efeito**: Botões para causar Glitch, EMP, ou Vibração instantânea.
+- **Mídia & Enquetes**: Envie imagens ou votações para o terminal.
 
 ---
 
 ## 🛠️ Tech Stack
 
-| Tecnologia             | Uso                                           |
-| ---------------------- | --------------------------------------------- |
-| **Next.js 16+**        | Framework React com App Router                |
-| **TypeScript**         | Tipagem estática                              |
-| **Tailwind CSS**       | Estilização                                   |
-| **Firebase Firestore** | Banco de dados em tempo real                  |
-| **CSS Animations**     | Efeitos visuais (scanlines, glow, typewriter) |
+| Tecnologia             | Uso                                         |
+| ---------------------- | ------------------------------------------- |
+| **Next.js 16+**        | Framework React com App Router              |
+| **TypeScript**         | Tipagem estática robusta                    |
+| **Tailwind CSS**       | Estilização responsiva e tema dark          |
+| **Firebase Firestore** | Banco de dados em tempo real (Mensagens/QR) |
+| **Web Audio API**      | Sons de interface e efeitos (`useSound`)    |
+| **Vibration API**      | Feedback tátil em dispositivos móveis       |
 
 ---
 
-## 🚀 Instalação
+## 🚀 Como Jogar (Minigames)
 
-### 1. Clone o Repositório
+O mestre pode iniciar protocolos de hacking que sobrepõem o terminal do jogador.
+
+1. **🔐 Descriptografia (Decryption)**
+
+   - O jogador recebe um prompt de senha.
+   - Deve digitar a senha correta (igual Wordle ou terminal clássico).
+   - _Uso_: Descobrir a senha de um computador ou maleta.
+
+2. **🔨 Força Bruta (Brute Force)**
+
+   - Caracteres rolam rapidamente na tela.
+   - O jogador deve clicar em `LOCK_BIT()` no momento certo para travar a senha.
+   - _Uso_: Quebrar firewalls ou trancas eletrônicas sob pressão.
+
+3. **📡 Sintonia (Signal Tuning)**
+   - Um slider de frequência com visualizador de ruído.
+   - O jogador ajusta até o sinal ficar "LOCKED" (>90% de força).
+   - _Uso_: Sintonizar rádio, interceptar sinal ou estabilizar conexão.
+
+---
+
+## 🚀 Instalação e Configuração
+
+### 1. Clone e Instale
 
 ```bash
 git clone https://github.com/seu-usuario/loob-link.git
 cd loob-link
-```
-
-### 2. Instale as Dependências
-
-```bash
 npm install
 ```
 
-### 3. Configure o Firebase
+### 2. Configure Variáveis (.env.local)
 
-1. Crie um projeto no [Firebase Console](https://console.firebase.google.com/)
-2. Ative o **Firestore Database** (modo de teste para começar)
-3. Copie as credenciais do seu projeto
-
-### 4. Configure as Variáveis de Ambiente
+Crie um projeto no Firebase e adicione as chaves:
 
 ```env
-NEXT_PUBLIC_FIREBASE_API_KEY=sua_api_key
-NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=seu_projeto.firebaseapp.com
-NEXT_PUBLIC_FIREBASE_PROJECT_ID=seu_projeto_id
-NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=seu_projeto.appspot.com
-NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=123456789
-NEXT_PUBLIC_FIREBASE_APP_ID=1:123456789:web:abc123
+NEXT_PUBLIC_FIREBASE_API_KEY=...
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=...
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=...
+...
 ```
 
-### 5. Execute o Projeto
+### 3. Popule o Banco de Dados (Opcional)
+
+Use o script de seed para criar QR Codes padrão:
+
+```bash
+node scripts/seed-qr.js
+```
+
+### 4. Execute
 
 ```bash
 npm run dev
 ```
 
-- **Terminal do Jogador**: http://localhost:3000
-- **Painel do Mestre**: http://localhost:3000/admin
+Acesse:
+
+- **Terminal**: `http://localhost:3000` (Mobile recommended)
+- **Admin**: `http://localhost:3000/admin` (Desktop recommended)
 
 ---
 
-## 📖 Como Usar na Sessão
-
-### Preparação
-
-1. Deploy a aplicação (Vercel, Netlify, etc.)
-2. Envie o link do terminal (`/` ou `/tex`) para o jogador alvo
-3. Abra o painel de controle (`/admin`) no seu dispositivo
-
-### Durante a Sessão
-
-1. **Jogador** abre o link no celular e clica em "INICIAR CONEXÃO"
-2. O terminal entra em modo de escuta, pronto para receber mensagens
-3. **Mestre** digita mensagens ou usa os atalhos rápidos
-4. As mensagens aparecem no terminal do jogador com efeito typewriter e vibração
-
-### Dicas de Uso
-
-- 🎭 Use em momentos de tensão narrativa
-- 📱 Peça para o jogador deixar o celular na mesa, virado para cima
-- 🔇 O jogador não deve mostrar as mensagens aos outros
-- 🎬 Combine com música ambiente para máxima imersão
-
----
-
-## 📁 Estrutura do Projeto
+## 📁 Estrutura Principal
 
 ```
 loob-link/
 ├── src/
 │   ├── app/
-│   │   ├── page.tsx          # Terminal do Jogador
-│   │   ├── admin/
-│   │   │   └── page.tsx      # Painel do Mestre
-│   │   ├── tex/
-│   │   │   └── page.tsx      # Rota alternativa do terminal
-│   │   ├── layout.tsx        # Layout raiz
-│   │   └── globals.css       # Estilos (CRT, glow, scanlines)
-│   └── lib/
-│       └── firebase.ts       # Configuração Firebase
-├── .env.local                # Variáveis de ambiente
-└── README.md
+│   │   ├── page.tsx          # Terminal (Lógica Principal)
+│   │   ├── admin/            # Painel do Mestre
+│   ├── components/
+│   │   ├── admin/            # Componentes do Painel (Managers, Trigger, etc)
+│   │   ├── terminal/         # Componentes do Jogador (Minigames, Output, Scanner)
+│   ├── hooks/                # useSound, useVibration
+│   └── lib/                  # Firebase config
 ```
-
----
-
-## 🔒 Regras do Firestore
-
-Para produção, configure as regras de segurança no Firebase Console:
-
-```javascript
-rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    match /messages/{messageId} {
-      // Qualquer um pode ler (terminal do jogador)
-      allow read: if true;
-
-      // Apenas escrita autenticada (implementar auth se necessário)
-      allow write: if true; // ⚠️ Altere para produção
-    }
-  }
-}
-```
-
----
-
-## 🎨 Personalização
-
-### Alterar Mensagens Rápidas
-
-Edite o array `QUICK_MESSAGES` em `/src/app/admin/page.tsx`:
-
-```typescript
-const QUICK_MESSAGES = [
-  { label: "👀", content: "👀" },
-  { label: "NOVA FRASE", content: "Sua mensagem aqui" },
-  // ...
-];
-```
-
-### Alterar Cores
-
-Modifique as CSS variables em `/src/app/globals.css`:
-
-```css
-:root {
-  --terminal-green: #00ff00; /* Cor principal */
-  --terminal-amber: #ffb000; /* Cor de prompt */
-  --terminal-red: #ff0040; /* Cor de alerta */
-  --terminal-cyan: #00ffff; /* Cor secundária */
-}
-```
-
----
-
-## 📜 Licença
-
-Este projeto foi criado para uso pessoal em campanhas de RPG. Sinta-se livre para usar, modificar e distribuir.
-
----
-
-## 🙏 Créditos
-
-- Inspirado pelo universo de **Ordem Paranormal** de Cellbit
-- Desenvolvido com 💚 para criar momentos épicos de RPG
 
 ---
 
@@ -218,6 +151,6 @@ Este projeto foi criado para uso pessoal em campanhas de RPG. Sinta-se livre par
 
 **[ L00B ESTÁ OBSERVANDO ]**
 
-_"Vocês não sabem do que estão lidando."_
+_"Vocês não sabem com o que estão lidando."_
 
 </div>

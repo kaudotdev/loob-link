@@ -1,0 +1,116 @@
+.admin-container {
+  min-height: 100vh;
+  background-color: var(--admin-bg);
+  color: var(--admin-text);
+  font-family: 'Courier New', Courier, monospace;
+  padding: 1rem;
+  background-image: 
+    linear-gradient(rgba(0, 20, 0, 0.1) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 20, 0, 0.1) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+.admin-panel {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: grid;
+  gap: 2rem;
+}
+
+.admin-card {
+  background: var(--admin-surface);
+  border: 1px solid var(--admin-border);
+  border-radius: 4px;
+  padding: 1.5rem;
+  position: relative;
+  transition: all 0.2s ease;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+}
+
+.admin-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--admin-border-hover), transparent);
+  opacity: 0.3;
+}
+
+.admin-card:hover {
+  border-color: var(--admin-text-dim);
+  box-shadow: 0 0 15px rgba(0, 255, 65, 0.05);
+}
+
+.admin-card-header {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--admin-text-dim);
+  margin-bottom: 1.5rem;
+  border-bottom: 1px solid var(--admin-border);
+  padding-bottom: 0.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.admin-input {
+  background: black;
+  border: 1px solid var(--admin-border);
+  color: var(--admin-text);
+  padding: 0.75rem;
+  font-family: monospace;
+  width: 100%;
+  font-size: 0.9rem;
+  transition: all 0.2s;
+}
+
+.admin-input:focus {
+  outline: none;
+  border-color: var(--admin-text);
+  box-shadow: 0 0 8px var(--terminal-dim);
+}
+
+.admin-btn {
+  background: transparent;
+  border: 1px solid var(--admin-text-dim);
+  color: var(--admin-text);
+  padding: 0.6rem 1.2rem;
+  font-family: monospace;
+  text-transform: uppercase;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  letter-spacing: 1px;
+}
+
+.admin-btn:hover:not(:disabled) {
+  background: var(--admin-text);
+  color: black;
+  box-shadow: 0 0 10px var(--terminal-glow);
+}
+
+.admin-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  border-color: #333;
+  color: #555;
+}
+
+.admin-btn-primary {
+  background: rgba(0, 255, 65, 0.1);
+  border-color: var(--admin-text);
+  font-weight: bold;
+}
+
+.admin-btn-danger {
+  border-color: #ff0040;
+  color: #ff0040;
+}
+.admin-btn-danger:hover:not(:disabled) {
+  background: #ff0040;
+  color: white;
+  box-shadow: 0 0 10px rgba(255, 0, 64, 0.4);
+}

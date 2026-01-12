@@ -10,7 +10,12 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
-// Initialize Firebase (evita reinicialização em hot reload)
+if (!process.env.NEXT_PUBLIC_FIREBASE_API_KEY) {
+  console.error("FATAL: Firebase API Key is missing! Check .env.local");
+} else {
+  console.log("Firebase Config Loaded. Project ID:", process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID);
+}
+
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 const db = getFirestore(app);
 
