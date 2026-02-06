@@ -26,6 +26,8 @@ import { TriggersPanel } from '@/components/admin/TriggersPanel';
 import { TemplateManager } from '@/components/admin/TemplateManager';
 import { QRCodeManager } from '@/components/admin/QRCodeManager';
 import { MiniGamesPanel } from '@/components/admin/MiniGamesPanel';
+import { AsciiArtPanel } from '@/components/admin/AsciiArtPanel';
+import { SceneMacrosPanel, MacroAction } from '@/components/admin/SceneMacrosPanel';
 import './admin.css';
 
 interface Message {
@@ -201,6 +203,40 @@ export default function AdminPage() {
     }
   };
 
+  const editMessage = async (id: string, newContent: string) => {
+    setIsLoading(true);
+    setStatus('Editando mensagem...');
+
+    try {
+      await updateDoc(doc(db, 'messages', id), {
+        content: newContent,
+      });
+      setStatus('✓ Mensagem editada!');
+      setTimeout(() => setStatus(''), 2000);
+    } catch (error: any) {
+      console.error('Erro ao editar:', error);
+      setStatus(`✗ Erro ao editar: ${error.message}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const deleteMessage = async (id: string) => {
+    setIsLoading(true);
+    setStatus('Apagando mensagem...');
+
+    try {
+      await deleteDoc(doc(db, 'messages', id));
+      setStatus('✓ Mensagem apagada!');
+      setTimeout(() => setStatus(''), 2000);
+    } catch (error: any) {
+      console.error('Erro ao apagar:', error);
+      setStatus(`✗ Erro ao apagar: ${error.message}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
     const calculateTypingTime = (message: string) => {
     const baseTime = 500;     
     const charTime = 30;     
@@ -209,7 +245,7 @@ export default function AdminPage() {
 
   const sendQuickMessage = async (content: string | string[]) => {
     if (Array.isArray(content)) {
-            for (let i = 0; i < content.length; i++) {
+      for (let i = 0; i < content.length; i++) {
         await sendMessage(content[i]);
         if (i < content.length - 1) {
           const typingDelay = calculateTypingTime(content[i]);
@@ -218,6 +254,49 @@ export default function AdminPage() {
       }
     } else {
       sendMessage(content);
+    }
+  };
+
+  // Executar macro de cena
+  const executeMacro = async (actions: MacroAction[]) => {
+    setIsLoading(true);
+    setStatus('▶ Executando macro...');
+
+    try {
+      for (const action of actions) {
+        switch (action.type) {
+          case 'message':
+            if (action.value.trim()) {
+              await sendMessage(action.value);
+            }
+            break;
+          case 'glitch':
+            await sendMessage('*** ERRO CRÍTICO DE SISTEMA ***', 'glitch');
+            break;
+          case 'vibrate':
+            await sendMessage('*** ALERTA ***', 'vibrate');
+            break;
+          case 'theme':
+            await sendMessage(`Tema: ${action.value}`, 'theme', { theme: action.value });
+            break;
+          case 'delay':
+            // Delay puro, sem ação
+            break;
+        }
+        
+        // Aguardar o delay configurado
+        if (action.delay && action.delay > 0) {
+          await new Promise(resolve => setTimeout(resolve, action.delay));
+        }
+      }
+      
+      setStatus('✓ Macro concluída!');
+      setTimeout(() => setStatus(''), 2000);
+    } catch (error: any) {
+      console.error('Erro na macro:', error);
+      setStatus(`✗ Erro: ${error.message}`);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -280,6 +359,20 @@ export default function AdminPage() {
 
                 <section className="admin-card">
                     <div className="admin-card-header">
+                        <span>🎬 Macros de Cena</span>
+                    </div>
+                    <SceneMacrosPanel onExecuteMacro={executeMacro} isLoading={isLoading} />
+                </section>
+
+                <section className="admin-card">
+                    <div className="admin-card-header">
+                        <span>☠ Banco de ASCII Art</span>
+                    </div>
+                    <AsciiArtPanel onSendArt={(art) => sendMessage(art)} isLoading={isLoading} />
+                </section>
+
+                <section className="admin-card">
+                    <div className="admin-card-header">
                         <span>💾 Templates Salvos</span>
                     </div>
                     <TemplateManager templates={templates} />
@@ -307,7 +400,11 @@ export default function AdminPage() {
                         <span className="text-xs">{messages.length} msgs</span>
                     </div>
                     <div className="flex-1 overflow-hidden">
-                        <MessageHistory messages={messages} />
+                        <MessageHistory 
+                            messages={messages} 
+                            onEdit={editMessage}
+                            onDelete={deleteMessage}
+                        />
                     </div>
                 </section>
 
