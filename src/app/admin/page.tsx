@@ -28,6 +28,7 @@ import { QRCodeManager } from '@/components/admin/QRCodeManager';
 import { MiniGamesPanel } from '@/components/admin/MiniGamesPanel';
 import { AsciiArtPanel } from '@/components/admin/AsciiArtPanel';
 import { SceneMacrosPanel, MacroAction } from '@/components/admin/SceneMacrosPanel';
+import { Image3DPanel } from '@/components/admin/Image3DPanel';
 import './admin.css';
 
 interface Message {
@@ -174,6 +175,15 @@ export default function AdminPage() {
         gameId: Date.now().toString(),
         gameType, 
         gameData 
+    });
+  };
+
+  const handleSend3DImage = (frontImage: string, backImage: string, caption: string, aspectRatio: number) => {
+    sendMessage(caption || '> ARQUIVO 3D RECEBIDO', 'image3d', { 
+      frontImage, 
+      backImage, 
+      caption,
+      aspectRatio
     });
   };
   
@@ -376,6 +386,14 @@ export default function AdminPage() {
                         <span>💾 Templates Salvos</span>
                     </div>
                     <TemplateManager templates={templates} />
+                </section>
+
+                <section className="admin-card">
+                    <div className="admin-card-header">
+                        <span>🎴 Visualizador 3D de Imagens</span>
+                        <div className="h-2 w-2 bg-purple-500 rounded-full animate-pulse" />
+                    </div>
+                    <Image3DPanel isLoading={isLoading} onSend3DImage={handleSend3DImage} />
                 </section>
 
             </div>
