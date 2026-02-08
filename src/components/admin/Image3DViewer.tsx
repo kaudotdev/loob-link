@@ -117,9 +117,22 @@ export function Image3DViewer({
     let initialTouchDistance = 0;
     let initialTouchCenter = { x: 0, y: 0 };
     let isTwoFingerTouch = false;
+    let isRightMouseButton = false;
 
     const onMouseDown = (e: MouseEvent) => {
       if (isTwoFingerTouch) return;
+      
+      // Check if it's right mouse button (button 2)
+      if (e.button === 2) {
+        e.preventDefault();
+        isRightMouseButton = true;
+        isDragging = true;
+        previousMousePosition = { x: e.clientX, y: e.clientY };
+        return;
+      }
+      
+      // Left mouse button
+      isRightMouseButton = false;
       isDragging = true;
       previousMousePosition = { x: e.clientX, y: e.clientY };
     };
@@ -130,17 +143,30 @@ export function Image3DViewer({
       const deltaX = e.clientX - previousMousePosition.x;
       const deltaY = e.clientY - previousMousePosition.y;
 
-      targetRotation.y += deltaX * 0.01;
-      targetRotation.x += deltaY * 0.01;
+      if (isRightMouseButton) {
+        // Right button: Pan (move object)
+        targetPanOffset.x += deltaX * 0.01;
+        targetPanOffset.y -= deltaY * 0.01; // Invert Y
+      } else {
+        // Left button: Rotate
+        targetRotation.y += deltaX * 0.01;
+        targetRotation.x += deltaY * 0.01;
 
-      // Limit vertical rotation
-      targetRotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, targetRotation.x));
+        // Limit vertical rotation
+        targetRotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, targetRotation.x));
+      }
 
       previousMousePosition = { x: e.clientX, y: e.clientY };
     };
 
     const onMouseUp = () => {
       isDragging = false;
+      isRightMouseButton = false;
+    };
+
+    // Prevent context menu on right click
+    const onContextMenu = (e: MouseEvent) => {
+      e.preventDefault();
     };
 
     // Zoom with mouse wheel
@@ -236,6 +262,7 @@ export function Image3DViewer({
     canvas.addEventListener('mousedown', onMouseDown);
     window.addEventListener('mousemove', onMouseMove);
     window.addEventListener('mouseup', onMouseUp);
+    canvas.addEventListener('contextmenu', onContextMenu);
     canvas.addEventListener('wheel', onWheel, { passive: false });
     canvas.addEventListener('touchstart', onTouchStart, { passive: false });
     canvas.addEventListener('touchmove', onTouchMove, { passive: false });
@@ -285,6 +312,7 @@ export function Image3DViewer({
       canvas.removeEventListener('mousedown', onMouseDown);
       window.removeEventListener('mousemove', onMouseMove);
       window.removeEventListener('mouseup', onMouseUp);
+      canvas.removeEventListener('contextmenu', onContextMenu);
       canvas.removeEventListener('wheel', onWheel);
       canvas.removeEventListener('touchstart', onTouchStart);
       canvas.removeEventListener('touchmove', onTouchMove);
@@ -332,7 +360,7 @@ export function Image3DViewer({
       {!isLoading && !error && (
         <div className="mt-3 text-center">
           <p className="text-xs text-gray-400 font-mono">
-            🖱 Arraste para rotacionar • 🔍 Scroll para zoom • 📱 2 dedos: mover/zoom
+            🖱 Arraste para rotacionar • 🖱➡ Botão direito para mover • 🔍 Scroll para zoom • 📱 2 dedos: mover/zoom
           </p>
         </div>
       )}

@@ -117,9 +117,23 @@ export function Image3DMessage({ frontImage, backImage, caption, aspectRatio = 0
     let initialTouchDistance = 0;
     let initialTouchCenter = { x: 0, y: 0 };
     let isTwoFingerTouch = false;
+    let isRightMouseButton = false;
 
     const onPointerDown = (e: PointerEvent) => {
       if (isTwoFingerTouch) return; // Ignore mouse during two-finger touch
+      
+      // Check if it's right mouse button (button 2)
+      if (e.button === 2) {
+        e.preventDefault();
+        isRightMouseButton = true;
+        isDragging = true;
+        previousPosition = { x: e.clientX, y: e.clientY };
+        renderer.domElement.setPointerCapture(e.pointerId);
+        return;
+      }
+      
+      // Left mouse button
+      isRightMouseButton = false;
       isDragging = true;
       previousPosition = { x: e.clientX, y: e.clientY };
       renderer.domElement.setPointerCapture(e.pointerId);
@@ -131,16 +145,29 @@ export function Image3DMessage({ frontImage, backImage, caption, aspectRatio = 0
       const deltaX = e.clientX - previousPosition.x;
       const deltaY = e.clientY - previousPosition.y;
 
-      targetRotation.y += deltaX * 0.01;
-      targetRotation.x += deltaY * 0.01;
-      targetRotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, targetRotation.x));
+      if (isRightMouseButton) {
+        // Right button: Pan (move object)
+        targetPanOffset.x += deltaX * 0.01;
+        targetPanOffset.y -= deltaY * 0.01; // Invert Y
+      } else {
+        // Left button: Rotate
+        targetRotation.y += deltaX * 0.01;
+        targetRotation.x += deltaY * 0.01;
+        targetRotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, targetRotation.x));
+      }
 
       previousPosition = { x: e.clientX, y: e.clientY };
     };
 
     const onPointerUp = (e: PointerEvent) => {
       isDragging = false;
+      isRightMouseButton = false;
       renderer.domElement.releasePointerCapture(e.pointerId);
+    };
+
+    // Prevent context menu on right click
+    const onContextMenu = (e: MouseEvent) => {
+      e.preventDefault();
     };
 
     // Zoom with mouse wheel
@@ -212,6 +239,7 @@ export function Image3DMessage({ frontImage, backImage, caption, aspectRatio = 0
     canvas.addEventListener('pointermove', onPointerMove);
     canvas.addEventListener('pointerup', onPointerUp);
     canvas.addEventListener('pointercancel', onPointerUp);
+    canvas.addEventListener('contextmenu', onContextMenu);
     canvas.addEventListener('wheel', onWheel, { passive: false });
     canvas.addEventListener('touchstart', onTouchStart, { passive: false });
     canvas.addEventListener('touchmove', onTouchMove, { passive: false });
@@ -260,6 +288,7 @@ export function Image3DMessage({ frontImage, backImage, caption, aspectRatio = 0
       canvas.removeEventListener('pointermove', onPointerMove);
       canvas.removeEventListener('pointerup', onPointerUp);
       canvas.removeEventListener('pointercancel', onPointerUp);
+      canvas.removeEventListener('contextmenu', onContextMenu);
       canvas.removeEventListener('wheel', onWheel);
       canvas.removeEventListener('touchstart', onTouchStart);
       canvas.removeEventListener('touchmove', onTouchMove);
@@ -428,7 +457,7 @@ export function Image3DMessage({ frontImage, backImage, caption, aspectRatio = 0
             {!isLoading && !error && (
               <div className="mt-3 text-center bg-black bg-opacity-50 backdrop-blur-sm border border-cyan-900 rounded-b-lg px-4 py-2">
                 <p className="text-xs text-gray-400 font-mono">
-                  🖱 Arraste para rotacionar • 🔍 Scroll para zoom • 📱 2 dedos: mover/zoom • 🔄 Auto-rotação ativa • 🖼 Clique fora para fechar
+                  🖱 Arraste para rotacionar • 🖱➡ Botão direito para mover • 🔍 Scroll para zoom • 📱 2 dedos: mover/zoom • 🔄 Auto-rotação ativa • 🖼 Clique fora para fechar
                 </p>
               </div>
             )}
