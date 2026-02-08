@@ -104,10 +104,20 @@ export function Image3DMessage({ frontImage, backImage, caption, aspectRatio = 0
     let targetRotation = { x: 0, y: 0 };
     
     // Zoom control
-    let zoom = 5; // Initial camera z position
+    let zoom = 5;
     let targetZoom = 5;
     const minZoom = 2;
     const maxZoom = 10;
+
+    // Pan control (movement)
+    let panOffset = { x: 0, y: 0 };
+    let targetPanOffset = { x: 0, y: 0 };
+
+    // Touch state
+    let touchDistance = 0;
+    let touchCenter = { x: 0, y: 0 };
+    let previousTouchCenter = { x: 0, y: 0 };
+    let isTwoFingerGesture = false;
 
     const onPointerDown = (e: PointerEvent) => {
       isDragging = true;
@@ -116,7 +126,7 @@ export function Image3DMessage({ frontImage, backImage, caption, aspectRatio = 0
     };
 
     const onPointerMove = (e: PointerEvent) => {
-      if (!isDragging || !card) return;
+      if (!isDragging || !card || isTwoFingerGesture) return;
 
       const deltaX = e.clientX - previousPosition.x;
       const deltaY = e.clientY - previousPosition.y;
@@ -141,37 +151,76 @@ export function Image3DMessage({ frontImage, backImage, caption, aspectRatio = 0
       targetZoom = Math.max(minZoom, Math.min(maxZoom, targetZoom));
     };
 
-    // Touch pinch-to-zoom
-    let touchDistance = 0;
+    // Touch gestures
     const onTouchStart = (e: TouchEvent) => {
       if (e.touches.length === 2) {
-        // Pinch gesture
+        // Two finger gesture - can be pinch zoom or pan
+        isTwoFingerGesture = true;
+        isDragging = false; // Disable rotation
+
         const dx = e.touches[0].clientX - e.touches[1].clientX;
         const dy = e.touches[0].clientY - e.touches[1].clientY;
         touchDistance = Math.sqrt(dx * dx + dy * dy);
+
+        // Calculate center point between fingers
+        touchCenter = {
+          x: (e.touches[0].clientX + e.touches[1].clientX) / 2,
+          y: (e.touches[0].clientY + e.touches[1].clientY) / 2
+        };
+        previousTouchCenter = { ...touchCenter };
+      } else if (e.touches.length === 1) {
+        isTwoFingerGesture = false;
       }
     };
 
     const onTouchMove = (e: TouchEvent) => {
-      if (e.touches.length === 2) {
-        // Pinch zoom
+      if (e.touches.length === 2 && card) {
         e.preventDefault();
+        
         const dx = e.touches[0].clientX - e.touches[1].clientX;
         const dy = e.touches[0].clientY - e.touches[1].clientY;
         const newDistance = Math.sqrt(dx * dx + dy * dy);
-        
-        if (touchDistance > 0) {
-          const delta = touchDistance - newDistance;
-          targetZoom += delta * 0.01;
-          targetZoom = Math.max(minZoom, Math.min(maxZoom, targetZoom));
+
+        // Calculate new center point
+        const newTouchCenter = {
+          x: (e.touches[0].clientX + e.touches[1].clientX) / 2,
+          y: (e.touches[0].clientY + e.touches[1].clientY) / 2
+        };
+
+        // Check if this is a pinch (distance changing) or pan (center moving)
+        const distanceChange = Math.abs(newDistance - touchDistance);
+        const centerMovement = Math.sqrt(
+          Math.pow(newTouchCenter.x - previousTouchCenter.x, 2) +
+          Math.pow(newTouchCenter.y - previousTouchCenter.y, 2)
+        );
+
+        if (distanceChange > centerMovement * 0.5) {
+          // Primarily a pinch/zoom gesture
+          if (touchDistance > 0) {
+            const delta = touchDistance - newDistance;
+            targetZoom += delta * 0.01;
+            targetZoom = Math.max(minZoom, Math.min(maxZoom, targetZoom));
+          }
+          touchDistance = newDistance;
+        } else {
+          // Primarily a pan gesture
+          const panDeltaX = newTouchCenter.x - previousTouchCenter.x;
+          const panDeltaY = newTouchCenter.y - previousTouchCenter.y;
+          
+          targetPanOffset.x += panDeltaX * 0.01;
+          targetPanOffset.y -= panDeltaY * 0.01; // Invert Y for natural movement
         }
-        
-        touchDistance = newDistance;
+
+        previousTouchCenter = newTouchCenter;
+        touchCenter = newTouchCenter;
       }
     };
 
-    const onTouchEnd = () => {
-      touchDistance = 0;
+    const onTouchEnd = (e: TouchEvent) => {
+      if (e.touches.length < 2) {
+        isTwoFingerGesture = false;
+        touchDistance = 0;
+      }
     };
 
     const canvas = renderer.domElement;
@@ -190,15 +239,25 @@ export function Image3DMessage({ frontImage, backImage, caption, aspectRatio = 0
       sceneRef.current!.animationId = animationId;
 
       if (card) {
-        rotation.x += (targetRotation.x - rotation.x) * 0.1;
-        rotation.y += (targetRotation.y - rotation.y) * 0.1;
+        // Only apply rotation if not in two-finger gesture mode
+        if (!isTwoFingerGesture) {
+          rotation.x += (targetRotation.x - rotation.x) * 0.1;
+          rotation.y += (targetRotation.y - rotation.y) * 0.1;
 
-        if (!isDragging) {
-          targetRotation.y += 0.002;
+          if (!isDragging) {
+            targetRotation.y += 0.002;
+          }
+
+          card.rotation.x = rotation.x;
+          card.rotation.y = rotation.y;
         }
 
-        card.rotation.x = rotation.x;
-        card.rotation.y = rotation.y;
+        // Apply pan offset smoothly
+        panOffset.x += (targetPanOffset.x - panOffset.x) * 0.1;
+        panOffset.y += (targetPanOffset.y - panOffset.y) * 0.1;
+        
+        card.position.x = panOffset.x;
+        card.position.y = panOffset.y;
       }
 
       // Apply zoom smoothly
@@ -385,7 +444,7 @@ export function Image3DMessage({ frontImage, backImage, caption, aspectRatio = 0
             {!isLoading && !error && (
               <div className="mt-3 text-center bg-black bg-opacity-50 backdrop-blur-sm border border-cyan-900 rounded-b-lg px-4 py-2">
                 <p className="text-xs text-gray-400 font-mono">
-                  🖱 Arraste para rotacionar • 🔍 Scroll para zoom • 📱 Pinch para zoom • 🔄 Auto-rotação ativa • 🖼 Clique fora para fechar
+                  🖱 Arraste para rotacionar • 🔍 Scroll para zoom • 📱 2 dedos: mover/zoom • 🔄 Auto-rotação ativa • 🖼 Clique fora para fechar
                 </p>
               </div>
             )}

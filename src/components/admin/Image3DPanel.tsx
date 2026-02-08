@@ -375,8 +375,8 @@ export function Image3DPanel({ isLoading = false, onSend3DImage }: Image3DPanelP
                 <ul className="text-xs text-gray-400 font-mono space-y-1">
                   <li>• <span className="text-white">Arraste</span> com o mouse para rotacionar o objeto</li>
                   <li>• <span className="text-white">Scroll</span> do mouse para zoom in/out</li>
-                  <li>• <span className="text-white">Touch</span> em dispositivos móveis para girar</li>
-                  <li>• <span className="text-white">Pinch</span> (dois dedos) para zoom no touch</li>
+                  <li>• <span className="text-white">1 dedo</span> em dispositivos móveis para girar</li>
+                  <li>• <span className="text-white">2 dedos</span> para mover ou zoom (pinch/pan)</li>
                   <li>• <span className="text-white">Auto-rotação</span> ativa quando não estiver arrastando</li>
                   <li>• <span className="text-white">Iluminação dinâmica</span> para melhor visualização</li>
                 </ul>

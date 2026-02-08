@@ -109,13 +109,23 @@ export function Image3DViewer({
     const minZoom = 2;
     const maxZoom = 10;
 
+    // Pan control (movement)
+    let panOffset = { x: 0, y: 0 };
+    let targetPanOffset = { x: 0, y: 0 };
+
+    // Touch state
+    let touchDistance = 0;
+    let touchCenter = { x: 0, y: 0 };
+    let previousTouchCenter = { x: 0, y: 0 };
+    let isTwoFingerGesture = false;
+
     const onMouseDown = (e: MouseEvent) => {
       isDragging = true;
       previousMousePosition = { x: e.clientX, y: e.clientY };
     };
 
     const onMouseMove = (e: MouseEvent) => {
-      if (!isDragging || !card) return;
+      if (!isDragging || !card || isTwoFingerGesture) return;
 
       const deltaX = e.clientX - previousMousePosition.x;
       const deltaY = e.clientY - previousMousePosition.y;
@@ -141,26 +151,35 @@ export function Image3DViewer({
       targetZoom = Math.max(minZoom, Math.min(maxZoom, targetZoom));
     };
 
-    // Touch support
-    let touchDistance = 0;
+    // Touch gestures
     const onTouchStart = (e: TouchEvent) => {
       if (e.touches.length === 1) {
         isDragging = true;
+        isTwoFingerGesture = false;
         previousMousePosition = { 
           x: e.touches[0].clientX, 
           y: e.touches[0].clientY 
         };
       } else if (e.touches.length === 2) {
-        // Pinch gesture
-        isDragging = false;
+        // Two finger gesture - can be pinch zoom or pan
+        isTwoFingerGesture = true;
+        isDragging = false; // Disable rotation
+
         const dx = e.touches[0].clientX - e.touches[1].clientX;
         const dy = e.touches[0].clientY - e.touches[1].clientY;
         touchDistance = Math.sqrt(dx * dx + dy * dy);
+
+        // Calculate center point between fingers
+        touchCenter = {
+          x: (e.touches[0].clientX + e.touches[1].clientX) / 2,
+          y: (e.touches[0].clientY + e.touches[1].clientY) / 2
+        };
+        previousTouchCenter = { ...touchCenter };
       }
     };
 
     const onTouchMove = (e: TouchEvent) => {
-      if (e.touches.length === 1 && isDragging && card) {
+      if (e.touches.length === 1 && isDragging && card && !isTwoFingerGesture) {
         e.preventDefault();
         const deltaX = e.touches[0].clientX - previousMousePosition.x;
         const deltaY = e.touches[0].clientY - previousMousePosition.y;
@@ -174,26 +193,56 @@ export function Image3DViewer({
           x: e.touches[0].clientX, 
           y: e.touches[0].clientY 
         };
-      } else if (e.touches.length === 2) {
-        // Pinch zoom
+      } else if (e.touches.length === 2 && card) {
         e.preventDefault();
+        
         const dx = e.touches[0].clientX - e.touches[1].clientX;
         const dy = e.touches[0].clientY - e.touches[1].clientY;
         const newDistance = Math.sqrt(dx * dx + dy * dy);
-        
-        if (touchDistance > 0) {
-          const delta = touchDistance - newDistance;
-          targetZoom += delta * 0.01;
-          targetZoom = Math.max(minZoom, Math.min(maxZoom, targetZoom));
+
+        // Calculate new center point
+        const newTouchCenter = {
+          x: (e.touches[0].clientX + e.touches[1].clientX) / 2,
+          y: (e.touches[0].clientY + e.touches[1].clientY) / 2
+        };
+
+        // Check if this is a pinch (distance changing) or pan (center moving)
+        const distanceChange = Math.abs(newDistance - touchDistance);
+        const centerMovement = Math.sqrt(
+          Math.pow(newTouchCenter.x - previousTouchCenter.x, 2) +
+          Math.pow(newTouchCenter.y - previousTouchCenter.y, 2)
+        );
+
+        if (distanceChange > centerMovement * 0.5) {
+          // Primarily a pinch/zoom gesture
+          if (touchDistance > 0) {
+            const delta = touchDistance - newDistance;
+            targetZoom += delta * 0.01;
+            targetZoom = Math.max(minZoom, Math.min(maxZoom, targetZoom));
+          }
+          touchDistance = newDistance;
+        } else {
+          // Primarily a pan gesture
+          const panDeltaX = newTouchCenter.x - previousTouchCenter.x;
+          const panDeltaY = newTouchCenter.y - previousTouchCenter.y;
+          
+          targetPanOffset.x += panDeltaX * 0.01;
+          targetPanOffset.y -= panDeltaY * 0.01; // Invert Y for natural movement
         }
-        
-        touchDistance = newDistance;
+
+        previousTouchCenter = newTouchCenter;
+        touchCenter = newTouchCenter;
       }
     };
 
-    const onTouchEnd = () => {
-      isDragging = false;
-      touchDistance = 0;
+    const onTouchEnd = (e: TouchEvent) => {
+      if (e.touches.length < 2) {
+        isTwoFingerGesture = false;
+        touchDistance = 0;
+      }
+      if (e.touches.length === 0) {
+        isDragging = false;
+      }
     };
 
     // Add event listeners
@@ -214,17 +263,27 @@ export function Image3DViewer({
       requestAnimationFrame(animate);
 
       if (card) {
-        // Smooth rotation interpolation
-        rotation.x += (targetRotation.x - rotation.x) * 0.1;
-        rotation.y += (targetRotation.y - rotation.y) * 0.1;
+        // Only apply rotation if not in two-finger gesture mode
+        if (!isTwoFingerGesture) {
+          // Smooth rotation interpolation
+          rotation.x += (targetRotation.x - rotation.x) * 0.1;
+          rotation.y += (targetRotation.y - rotation.y) * 0.1;
 
-        // Auto-rotate when not dragging
-        if (!isDragging) {
-          targetRotation.y += autoRotationSpeed;
+          // Auto-rotate when not dragging
+          if (!isDragging) {
+            targetRotation.y += autoRotationSpeed;
+          }
+
+          card.rotation.x = rotation.x;
+          card.rotation.y = rotation.y;
         }
 
-        card.rotation.x = rotation.x;
-        card.rotation.y = rotation.y;
+        // Apply pan offset smoothly
+        panOffset.x += (targetPanOffset.x - panOffset.x) * 0.1;
+        panOffset.y += (targetPanOffset.y - panOffset.y) * 0.1;
+        
+        card.position.x = panOffset.x;
+        card.position.y = panOffset.y;
       }
 
       // Apply zoom smoothly
@@ -287,7 +346,7 @@ export function Image3DViewer({
       {!isLoading && !error && (
         <div className="mt-3 text-center">
           <p className="text-xs text-gray-400 font-mono">
-            🖱 Arraste para rotacionar • 🔍 Scroll para zoom • 📱 Pinch para zoom
+            🖱 Arraste para rotacionar • 🔍 Scroll para zoom • 📱 2 dedos: mover/zoom
           </p>
         </div>
       )}
