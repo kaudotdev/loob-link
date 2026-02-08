@@ -114,18 +114,18 @@ export function Image3DViewer({
     let targetPanOffset = { x: 0, y: 0 };
 
     // Touch state
-    let touchDistance = 0;
-    let touchCenter = { x: 0, y: 0 };
-    let previousTouchCenter = { x: 0, y: 0 };
-    let isTwoFingerGesture = false;
+    let initialTouchDistance = 0;
+    let initialTouchCenter = { x: 0, y: 0 };
+    let isTwoFingerTouch = false;
 
     const onMouseDown = (e: MouseEvent) => {
+      if (isTwoFingerTouch) return;
       isDragging = true;
       previousMousePosition = { x: e.clientX, y: e.clientY };
     };
 
     const onMouseMove = (e: MouseEvent) => {
-      if (!isDragging || !card || isTwoFingerGesture) return;
+      if (!isDragging || !card || isTwoFingerTouch) return;
 
       const deltaX = e.clientX - previousMousePosition.x;
       const deltaY = e.clientY - previousMousePosition.y;
@@ -152,34 +152,39 @@ export function Image3DViewer({
     };
 
     // Touch gestures
+    const getTouchCenter = (touches: TouchList) => {
+      return {
+        x: (touches[0].clientX + touches[1].clientX) / 2,
+        y: (touches[0].clientY + touches[1].clientY) / 2
+      };
+    };
+
+    const getTouchDistance = (touches: TouchList) => {
+      const dx = touches[0].clientX - touches[1].clientX;
+      const dy = touches[0].clientY - touches[1].clientY;
+      return Math.sqrt(dx * dx + dy * dy);
+    };
+
     const onTouchStart = (e: TouchEvent) => {
       if (e.touches.length === 1) {
         isDragging = true;
-        isTwoFingerGesture = false;
+        isTwoFingerTouch = false;
         previousMousePosition = { 
           x: e.touches[0].clientX, 
           y: e.touches[0].clientY 
         };
       } else if (e.touches.length === 2) {
-        // Two finger gesture - can be pinch zoom or pan
-        isTwoFingerGesture = true;
-        isDragging = false; // Disable rotation
+        // Two fingers - enable pan and zoom, disable rotation
+        isTwoFingerTouch = true;
+        isDragging = false;
 
-        const dx = e.touches[0].clientX - e.touches[1].clientX;
-        const dy = e.touches[0].clientY - e.touches[1].clientY;
-        touchDistance = Math.sqrt(dx * dx + dy * dy);
-
-        // Calculate center point between fingers
-        touchCenter = {
-          x: (e.touches[0].clientX + e.touches[1].clientX) / 2,
-          y: (e.touches[0].clientY + e.touches[1].clientY) / 2
-        };
-        previousTouchCenter = { ...touchCenter };
+        initialTouchDistance = getTouchDistance(e.touches);
+        initialTouchCenter = getTouchCenter(e.touches);
       }
     };
 
     const onTouchMove = (e: TouchEvent) => {
-      if (e.touches.length === 1 && isDragging && card && !isTwoFingerGesture) {
+      if (e.touches.length === 1 && isDragging && card && !isTwoFingerTouch) {
         e.preventDefault();
         const deltaX = e.touches[0].clientX - previousMousePosition.x;
         const deltaY = e.touches[0].clientY - previousMousePosition.y;
@@ -196,49 +201,30 @@ export function Image3DViewer({
       } else if (e.touches.length === 2 && card) {
         e.preventDefault();
         
-        const dx = e.touches[0].clientX - e.touches[1].clientX;
-        const dy = e.touches[0].clientY - e.touches[1].clientY;
-        const newDistance = Math.sqrt(dx * dx + dy * dy);
+        // Calculate new values
+        const currentDistance = getTouchDistance(e.touches);
+        const currentCenter = getTouchCenter(e.touches);
 
-        // Calculate new center point
-        const newTouchCenter = {
-          x: (e.touches[0].clientX + e.touches[1].clientX) / 2,
-          y: (e.touches[0].clientY + e.touches[1].clientY) / 2
-        };
+        // Zoom (pinch)
+        const distanceDelta = initialTouchDistance - currentDistance;
+        targetZoom += distanceDelta * 0.005;
+        targetZoom = Math.max(minZoom, Math.min(maxZoom, targetZoom));
+        initialTouchDistance = currentDistance;
 
-        // Check if this is a pinch (distance changing) or pan (center moving)
-        const distanceChange = Math.abs(newDistance - touchDistance);
-        const centerMovement = Math.sqrt(
-          Math.pow(newTouchCenter.x - previousTouchCenter.x, 2) +
-          Math.pow(newTouchCenter.y - previousTouchCenter.y, 2)
-        );
-
-        if (distanceChange > centerMovement * 0.5) {
-          // Primarily a pinch/zoom gesture
-          if (touchDistance > 0) {
-            const delta = touchDistance - newDistance;
-            targetZoom += delta * 0.01;
-            targetZoom = Math.max(minZoom, Math.min(maxZoom, targetZoom));
-          }
-          touchDistance = newDistance;
-        } else {
-          // Primarily a pan gesture
-          const panDeltaX = newTouchCenter.x - previousTouchCenter.x;
-          const panDeltaY = newTouchCenter.y - previousTouchCenter.y;
-          
-          targetPanOffset.x += panDeltaX * 0.01;
-          targetPanOffset.y -= panDeltaY * 0.01; // Invert Y for natural movement
-        }
-
-        previousTouchCenter = newTouchCenter;
-        touchCenter = newTouchCenter;
+        // Pan (movement)
+        const centerDeltaX = currentCenter.x - initialTouchCenter.x;
+        const centerDeltaY = currentCenter.y - initialTouchCenter.y;
+        
+        targetPanOffset.x += centerDeltaX * 0.005;
+        targetPanOffset.y -= centerDeltaY * 0.005; // Invert Y
+        initialTouchCenter = currentCenter;
       }
     };
 
     const onTouchEnd = (e: TouchEvent) => {
       if (e.touches.length < 2) {
-        isTwoFingerGesture = false;
-        touchDistance = 0;
+        isTwoFingerTouch = false;
+        initialTouchDistance = 0;
       }
       if (e.touches.length === 0) {
         isDragging = false;
@@ -263,8 +249,8 @@ export function Image3DViewer({
       requestAnimationFrame(animate);
 
       if (card) {
-        // Only apply rotation if not in two-finger gesture mode
-        if (!isTwoFingerGesture) {
+        // Apply rotation (blocked during two-finger touch)
+        if (!isTwoFingerTouch) {
           // Smooth rotation interpolation
           rotation.x += (targetRotation.x - rotation.x) * 0.1;
           rotation.y += (targetRotation.y - rotation.y) * 0.1;
