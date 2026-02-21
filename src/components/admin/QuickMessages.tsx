@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { MESSAGE_CATEGORIES } from './constants';
+import { IA_DE_BOLSO_EXTRA } from './constants';
 
 interface QuickMessagesProps {
   onSendQuick: (content: string | string[]) => void;
@@ -29,7 +29,7 @@ export function QuickMessages({ onSendQuick, isLoading, templates }: QuickMessag
       }));
   }, [templates]);
 
-  const allCategories = [...customCategories, ...MESSAGE_CATEGORIES];
+  const allCategories = [...customCategories, ...IA_DE_BOLSO_EXTRA];
 
   return (
     <div className="space-y-6">
