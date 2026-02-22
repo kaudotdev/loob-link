@@ -113,39 +113,54 @@ export function WhiteboardModal({ templateId, onClose }: WhiteboardModalProps) {
   const THROTTLE_MS = 16;
 
   /**
-   * Redimensiona canvas mantendo aspect ratio da imagem
+   * Redimensiona canvas para tamanho exato da imagem renderizada
+   * Canvas e imagem devem ter dimensões idênticas para evitar traços esticados
    */
   useEffect(() => {
     const canvas = canvasRef.current;
     const container = containerRef.current;
-    if (!canvas || !container || !imageAspectRatio) return;
+    const img = backgroundRef.current;
+    if (!canvas || !container || !img || !imageAspectRatio) return;
 
     const resizeCanvas = () => {
+      // Aguarda imagem estar completamente carregada
+      if (!img.complete || img.naturalWidth === 0) return;
+
       const containerRect = container.getBoundingClientRect();
       const containerWidth = containerRect.width;
       const containerHeight = containerRect.height;
       const containerAspect = containerWidth / containerHeight;
 
-      let canvasWidth, canvasHeight, offsetX, offsetY;
+      let renderWidth, renderHeight, offsetX, offsetY;
 
+      // Calcula tamanho real da imagem renderizada (object-contain)
       if (containerAspect > imageAspectRatio) {
-        // Container mais largo que a imagem - pillarbox (barras laterais)
-        canvasHeight = containerHeight;
-        canvasWidth = canvasHeight * imageAspectRatio;
-        offsetX = (containerWidth - canvasWidth) / 2;
+        // Container mais largo - imagem se ajusta pela altura
+        renderHeight = containerHeight;
+        renderWidth = renderHeight * imageAspectRatio;
+        offsetX = (containerWidth - renderWidth) / 2;
         offsetY = 0;
       } else {
-        // Container mais alto que a imagem - letterbox (barras superior/inferior)
-        canvasWidth = containerWidth;
-        canvasHeight = canvasWidth / imageAspectRatio;
+        // Container mais alto - imagem se ajusta pela largura
+        renderWidth = containerWidth;
+        renderHeight = renderWidth / imageAspectRatio;
         offsetX = 0;
-        offsetY = (containerHeight - canvasHeight) / 2;
+        offsetY = (containerHeight - renderHeight) / 2;
       }
 
-      canvas.width = canvasWidth;
-      canvas.height = canvasHeight;
+      // Canvas deve ter EXATAMENTE o mesmo tamanho da imagem renderizada
+      canvas.width = renderWidth;
+      canvas.height = renderHeight;
+      canvas.style.width = `${renderWidth}px`;
+      canvas.style.height = `${renderHeight}px`;
       canvas.style.left = `${offsetX}px`;
       canvas.style.top = `${offsetY}px`;
+
+      // Imagem também deve ter o mesmo tamanho e posição
+      img.style.width = `${renderWidth}px`;
+      img.style.height = `${renderHeight}px`;
+      img.style.left = `${offsetX}px`;
+      img.style.top = `${offsetY}px`;
       
       redrawAllStrokes();
     };
@@ -495,13 +510,18 @@ export function WhiteboardModal({ templateId, onClose }: WhiteboardModalProps) {
             ref={backgroundRef}
             src={backgroundImage}
             alt="Background"
-            className="absolute top-0 left-0 w-full h-full object-contain pointer-events-none"
+            className="absolute pointer-events-none"
+            style={{
+              transform: `scale(${scale}) translate(${panX / scale}px, ${panY / scale}px)`,
+              transformOrigin: 'center center',
+              objectFit: 'contain'
+            }}
             crossOrigin="anonymous"
           />
         )}
         <canvas
           ref={canvasRef}
-          className="absolute top-0 left-0 w-full h-full touch-none"
+          className="absolute touch-none"
           style={{ 
             cursor: cursorStyle,
             transform: `scale(${scale}) translate(${panX / scale}px, ${panY / scale}px)`,
