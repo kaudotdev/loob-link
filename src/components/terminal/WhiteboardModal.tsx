@@ -8,7 +8,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Tool, Point } from '@/types/whiteboard';
+import { Tool, Point, CanvasElement } from '@/types/whiteboard';
 import { useWhiteboardSocket } from '@/lib/useWhiteboardSocket';
 import { PenLine, Eraser, Download, Maximize2, Minimize2, X, Lock, Unlock } from 'lucide-react';
 import { db } from '@/lib/firebase';
@@ -25,9 +25,18 @@ export function WhiteboardModal({ templateId, onClose }: WhiteboardModalProps) {
   const [backgroundImage, setBackgroundImage] = useState<string>('');
   const [locked, setLocked] = useState(false);
   const [isLoadingTemplate, setIsLoadingTemplate] = useState(true);
+  const [imageAspectRatio, setImageAspectRatio] = useState<number | null>(null);
+  
+  // Estados de zoom e pan
+  const [scale, setScale] = useState(1);
+  const [panX, setPanX] = useState(0);
+  const [panY, setPanY] = useState(0);
+  
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const backgroundRef = useRef<HTMLImageElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const lastTouchDistanceRef = useRef<number | null>(null);
+  const initialPinchCenterRef = useRef<{ x: number; y: number } | null>(null);
   
   // Estado do desenho
   const [isDrawing, setIsDrawing] = useState(false);
@@ -73,8 +82,29 @@ export function WhiteboardModal({ templateId, onClose }: WhiteboardModalProps) {
     };
   }, [templateId, isDrawing]);
 
-  // Firestore sync (strokes separados por templateId)
-  const { strokes, addStroke } = useWhiteboardSocket(templateId);
+  // Firestore sync (elementos separados por templateId)
+  const { elements, addStroke } = useWhiteboardSocket(templateId);
+
+  /**
+   * Captura aspect ratio da imagem de fundo quando carregar
+   */
+  useEffect(() => {
+    const img = backgroundRef.current;
+    if (!img || !backgroundImage) return;
+
+    const handleImageLoad = () => {
+      const ratio = img.naturalWidth / img.naturalHeight;
+      setImageAspectRatio(ratio);
+      console.log(`📐 Image aspect ratio: ${ratio.toFixed(2)} (${img.naturalWidth}x${img.naturalHeight})`);
+    };
+
+    if (img.complete) {
+      handleImageLoad();
+    } else {
+      img.addEventListener('load', handleImageLoad);
+      return () => img.removeEventListener('load', handleImageLoad);
+    }
+  }, [backgroundImage]);
 
   // Configurações
   const PEN_COLOR = '#000000';
@@ -83,27 +113,50 @@ export function WhiteboardModal({ templateId, onClose }: WhiteboardModalProps) {
   const THROTTLE_MS = 16;
 
   /**
-   * Redimensiona canvas responsivamente
+   * Redimensiona canvas mantendo aspect ratio da imagem
    */
   useEffect(() => {
     const canvas = canvasRef.current;
     const container = containerRef.current;
-    if (!canvas || !container) return;
+    if (!canvas || !container || !imageAspectRatio) return;
 
     const resizeCanvas = () => {
-      const rect = container.getBoundingClientRect();
-      canvas.width = rect.width;
-      canvas.height = rect.height;
+      const containerRect = container.getBoundingClientRect();
+      const containerWidth = containerRect.width;
+      const containerHeight = containerRect.height;
+      const containerAspect = containerWidth / containerHeight;
+
+      let canvasWidth, canvasHeight, offsetX, offsetY;
+
+      if (containerAspect > imageAspectRatio) {
+        // Container mais largo que a imagem - pillarbox (barras laterais)
+        canvasHeight = containerHeight;
+        canvasWidth = canvasHeight * imageAspectRatio;
+        offsetX = (containerWidth - canvasWidth) / 2;
+        offsetY = 0;
+      } else {
+        // Container mais alto que a imagem - letterbox (barras superior/inferior)
+        canvasWidth = containerWidth;
+        canvasHeight = canvasWidth / imageAspectRatio;
+        offsetX = 0;
+        offsetY = (containerHeight - canvasHeight) / 2;
+      }
+
+      canvas.width = canvasWidth;
+      canvas.height = canvasHeight;
+      canvas.style.left = `${offsetX}px`;
+      canvas.style.top = `${offsetY}px`;
+      
       redrawAllStrokes();
     };
 
     resizeCanvas();
     window.addEventListener('resize', resizeCanvas);
     return () => window.removeEventListener('resize', resizeCanvas);
-  }, [isFullscreen]);
+  }, [isFullscreen, imageAspectRatio]);
 
   /**
-   * Redesenha todos os strokes
+   * Redesenha todos os elementos (strokes e textos)
    */
   const redrawAllStrokes = useCallback(() => {
     const canvas = canvasRef.current;
@@ -114,53 +167,65 @@ export function WhiteboardModal({ templateId, onClose }: WhiteboardModalProps) {
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    strokes.forEach((stroke) => {
-      if (stroke.points.length === 0) return;
-
+    elements.forEach((element: CanvasElement) => {
       ctx.save();
 
-      if (stroke.tool === 'eraser') {
-        ctx.globalCompositeOperation = 'destination-out';
-        ctx.strokeStyle = 'rgba(0,0,0,1)';
-        ctx.lineWidth = ERASER_SIZE;
-      } else {
-        ctx.globalCompositeOperation = 'source-over';
-        ctx.strokeStyle = stroke.color;
-        ctx.lineWidth = stroke.size;
+      // Apenas renderiza strokes (pen/eraser), ignora text
+      if ('points' in element && element.points.length > 0) {
+        // Renderizar stroke (pen ou eraser)
+        if (element.tool === 'eraser') {
+          ctx.globalCompositeOperation = 'destination-out';
+          ctx.strokeStyle = 'rgba(0,0,0,1)';
+          ctx.lineWidth = ERASER_SIZE;
+        } else {
+          ctx.globalCompositeOperation = 'source-over';
+          ctx.strokeStyle = element.color;
+          ctx.lineWidth = element.size;
+        }
+
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.beginPath();
+        
+        const startPoint = element.points[0];
+        ctx.moveTo(startPoint.x * canvas.width, startPoint.y * canvas.height);
+
+        for (let i = 1; i < element.points.length; i++) {
+          const point = element.points[i];
+          ctx.lineTo(point.x * canvas.width, point.y * canvas.height);
+        }
+
+        ctx.stroke();
       }
 
-      ctx.lineCap = 'round';
-      ctx.lineJoin = 'round';
-      ctx.beginPath();
-      
-      const startPoint = stroke.points[0];
-      ctx.moveTo(startPoint.x * canvas.width, startPoint.y * canvas.height);
-
-      for (let i = 1; i < stroke.points.length; i++) {
-        const point = stroke.points[i];
-        ctx.lineTo(point.x * canvas.width, point.y * canvas.height);
-      }
-
-      ctx.stroke();
       ctx.restore();
     });
-  }, [strokes]);
+  }, [elements]);
 
   useEffect(() => {
     redrawAllStrokes();
-  }, [strokes, redrawAllStrokes]);
+  }, [elements, redrawAllStrokes]);
 
   /**
-   * Coordenadas relativas
+   * Coordenadas relativas (considerando zoom e pan)
    */
   const getRelativePoint = (clientX: number, clientY: number): Point | null => {
     const canvas = canvasRef.current;
     if (!canvas) return null;
 
     const rect = canvas.getBoundingClientRect();
+    
+    // Posição no canvas visível (com zoom)
+    const canvasX = (clientX - rect.left) / rect.width;
+    const canvasY = (clientY - rect.top) / rect.height;
+    
+    // Ajusta pelo zoom e pan para obter coordenada real no canvas original
+    const adjustedX = (canvasX - 0.5) / scale - (panX / scale / rect.width) + 0.5;
+    const adjustedY = (canvasY - 0.5) / scale - (panY / scale / rect.height) + 0.5;
+    
     return {
-      x: (clientX - rect.left) / rect.width,
-      y: (clientY - rect.top) / rect.height
+      x: adjustedX,
+      y: adjustedY
     };
   };
 
@@ -220,6 +285,95 @@ export function WhiteboardModal({ templateId, onClose }: WhiteboardModalProps) {
   };
 
   /**
+   * Calcula distância entre dois toques
+   */
+  const getTouchDistance = (touch1: React.Touch, touch2: React.Touch): number => {
+    const dx = touch2.clientX - touch1.clientX;
+    const dy = touch2.clientY - touch1.clientY;
+    return Math.sqrt(dx * dx + dy * dy);
+  };
+
+  /**
+   * Calcula centro entre dois toques
+   */
+  const getTouchCenter = (touch1: React.Touch, touch2: React.Touch) => {
+    return {
+      x: (touch1.clientX + touch2.clientX) / 2,
+      y: (touch1.clientY + touch2.clientY) / 2
+    };
+  };
+
+  /**
+   * Handler de pinch-to-zoom
+   */
+  const handleTouchStart = (e: React.TouchEvent<HTMLCanvasElement>) => {
+    if (e.touches.length === 2) {
+      // Pinch zoom com dois dedos
+      e.preventDefault();
+      const distance = getTouchDistance(e.touches[0], e.touches[1]);
+      lastTouchDistanceRef.current = distance;
+      initialPinchCenterRef.current = getTouchCenter(e.touches[0], e.touches[1]);
+      
+      // Cancela desenho se estava em andamento
+      if (isDrawing) {
+        setIsDrawing(false);
+        currentStrokeRef.current = [];
+      }
+    } else if (e.touches.length === 1) {
+      // Desenho com um dedo
+      e.preventDefault();
+      const touch = e.touches[0];
+      startDrawing(touch.clientX, touch.clientY);
+    }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent<HTMLCanvasElement>) => {
+    if (e.touches.length === 2) {
+      // Pinch zoom
+      e.preventDefault();
+      const currentDistance = getTouchDistance(e.touches[0], e.touches[1]);
+      const currentCenter = getTouchCenter(e.touches[0], e.touches[1]);
+      
+      if (lastTouchDistanceRef.current && initialPinchCenterRef.current) {
+        const scaleChange = currentDistance / lastTouchDistanceRef.current;
+        const newScale = Math.max(0.5, Math.min(5, scale * scaleChange)); // Limita entre 0.5x e 5x
+        
+        // Ajusta pan para zoom centralizado no ponto de pinça
+        const canvas = canvasRef.current;
+        if (canvas) {
+          const rect = canvas.getBoundingClientRect();
+          const zoomPointX = (currentCenter.x - rect.left) / rect.width;
+          const zoomPointY = (currentCenter.y - rect.top) / rect.height;
+          
+          setPanX(panX + (zoomPointX - 0.5) * (newScale - scale) * rect.width);
+          setPanY(panY + (zoomPointY - 0.5) * (newScale - scale) * rect.height);
+        }
+        
+        setScale(newScale);
+        lastTouchDistanceRef.current = currentDistance;
+      }
+    } else if (e.touches.length === 1 && !lastTouchDistanceRef.current) {
+      // Desenho com um dedo
+      e.preventDefault();
+      const touch = e.touches[0];
+      continueDrawing(touch.clientX, touch.clientY);
+    }
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent<HTMLCanvasElement>) => {
+    e.preventDefault();
+    
+    if (e.touches.length < 2) {
+      lastTouchDistanceRef.current = null;
+      initialPinchCenterRef.current = null;
+    }
+    
+    if (e.touches.length === 0) {
+      endDrawing();
+    }
+  };
+
+  /**
    * Eventos de desenho (desabilitados se locked=true)
    */
   const startDrawing = (clientX: number, clientY: number) => {
@@ -248,7 +402,7 @@ export function WhiteboardModal({ templateId, onClose }: WhiteboardModalProps) {
       animationFrameRef.current = null;
     }
 
-    if (currentStrokeRef.current.length > 1) {
+    if (currentStrokeRef.current.length > 1 && (currentTool === 'pen' || currentTool === 'eraser')) {
       addStroke({
         tool: currentTool,
         points: [...currentStrokeRef.current],
@@ -348,25 +502,18 @@ export function WhiteboardModal({ templateId, onClose }: WhiteboardModalProps) {
         <canvas
           ref={canvasRef}
           className="absolute top-0 left-0 w-full h-full touch-none"
-          style={{ cursor: cursorStyle }}
+          style={{ 
+            cursor: cursorStyle,
+            transform: `scale(${scale}) translate(${panX / scale}px, ${panY / scale}px)`,
+            transformOrigin: 'center center'
+          }}
           onMouseDown={(e) => startDrawing(e.clientX, e.clientY)}
           onMouseMove={(e) => continueDrawing(e.clientX, e.clientY)}
           onMouseUp={endDrawing}
           onMouseLeave={endDrawing}
-          onTouchStart={(e) => {
-            e.preventDefault();
-            const touch = e.touches[0];
-            startDrawing(touch.clientX, touch.clientY);
-          }}
-          onTouchMove={(e) => {
-            e.preventDefault();
-            const touch = e.touches[0];
-            continueDrawing(touch.clientX, touch.clientY);
-          }}
-          onTouchEnd={(e) => {
-            e.preventDefault();
-            endDrawing();
-          }}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
         />
       </div>
 

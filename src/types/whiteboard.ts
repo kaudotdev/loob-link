@@ -22,7 +22,7 @@ export type Tool = 'pen' | 'eraser';
  */
 export interface Stroke {
   id: string;
-  tool: Tool;
+  tool: 'pen' | 'eraser';
   points: Point[];
   color: string;
   size: number;
@@ -30,12 +30,42 @@ export interface Stroke {
 }
 
 /**
+ * Text element no canvas
+ */
+export interface TextStroke {
+  id: string;
+  tool: 'text';
+  text: string;
+  position: Point;
+  color: string;
+  fontSize: number;
+  createdAt: Timestamp | Date;
+}
+
+/**
+ * Union type para todos os elementos do canvas
+ */
+export type CanvasElement = Stroke | TextStroke;
+
+/**
  * Dados do stroke sem ID (para criação)
  */
 export interface StrokeData {
-  tool: Tool;
+  tool: 'pen' | 'eraser';
   points: Point[];
   color: string;
   size: number;
+  createdAt: any; // serverTimestamp()
+}
+
+/**
+ * Dados do texto sem ID (para criação)
+ */
+export interface TextData {
+  tool: 'text';
+  text: string;
+  position: Point;
+  color: string;
+  fontSize: number;
   createdAt: any; // serverTimestamp()
 }

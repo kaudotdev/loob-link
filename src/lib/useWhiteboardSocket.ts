@@ -19,16 +19,16 @@ import {
   DocumentData
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { Stroke, StrokeData } from '@/types/whiteboard';
+import { CanvasElement, StrokeData, TextData } from '@/types/whiteboard';
 
 export function useWhiteboardSocket(templateId: string) {
-  const [strokes, setStrokes] = useState<Stroke[]>([]);
+  const [elements, setElements] = useState<CanvasElement[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   /**
-   * Sincroniza strokes em tempo real via Firestore onSnapshot
-   * Cada template tem sua própria coleção de strokes
+   * Sincroniza elementos em tempo real via Firestore onSnapshot
+   * Cada template tem sua própria coleção (strokes + textos)
    */
   useEffect(() => {
     if (!templateId) {
@@ -39,30 +39,43 @@ export function useWhiteboardSocket(templateId: string) {
     console.log(`🔌 Connecting to whiteboard template: ${templateId}`);
     
     // Query ordenada por timestamp - cada template tem sua coleção
-    const strokesRef = collection(db, 'whiteboard_strokes', templateId, 'strokes');
-    const q = query(strokesRef, orderBy('createdAt', 'asc'));
+    const elementsRef = collection(db, 'whiteboard_strokes', templateId, 'strokes');
+    const q = query(elementsRef, orderBy('createdAt', 'asc'));
 
     // Listener de tempo real
     const unsubscribe = onSnapshot(
       q,
       (snapshot) => {
-        const loadedStrokes: Stroke[] = [];
+        const loadedElements: CanvasElement[] = [];
         
         snapshot.forEach((doc) => {
           const data = doc.data() as DocumentData;
-          loadedStrokes.push({
-            id: doc.id,
-            tool: data.tool,
-            points: data.points,
-            color: data.color,
-            size: data.size,
-            createdAt: data.createdAt || new Date()
-          });
+          
+          if (data.tool === 'text') {
+            loadedElements.push({
+              id: doc.id,
+              tool: 'text',
+              text: data.text,
+              position: data.position,
+              color: data.color,
+              fontSize: data.fontSize,
+              createdAt: data.createdAt || new Date()
+            });
+          } else {
+            loadedElements.push({
+              id: doc.id,
+              tool: data.tool,
+              points: data.points,
+              color: data.color,
+              size: data.size,
+              createdAt: data.createdAt || new Date()
+            });
+          }
         });
 
-        setStrokes(loadedStrokes);
+        setElements(loadedElements);
         setIsLoading(false);
-        console.log(`📡 Synced ${loadedStrokes.length} strokes for template ${templateId}`);
+        console.log(`📡 Synced ${loadedElements.length} elements for template ${templateId}`);
       },
       (err) => {
         console.error('❌ Firestore sync error:', err);
@@ -102,7 +115,7 @@ export function useWhiteboardSocket(templateId: string) {
   }, [templateId]);
 
   return {
-    strokes,
+    elements,
     isLoading,
     error,
     addStroke
