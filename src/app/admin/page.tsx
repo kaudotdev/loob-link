@@ -29,6 +29,7 @@ import { MiniGamesPanel } from '@/components/admin/MiniGamesPanel';
 import { AsciiArtPanel } from '@/components/admin/AsciiArtPanel';
 import { SceneMacrosPanel, MacroAction } from '@/components/admin/SceneMacrosPanel';
 import { Image3DPanel } from '@/components/admin/Image3DPanel';
+import { WhiteboardPanel } from '@/components/admin/WhiteboardPanel';
 import './admin.css';
 
 interface Message {
@@ -184,6 +185,12 @@ export default function AdminPage() {
       backImage, 
       caption,
       aspectRatio
+    });
+  };
+
+  const handleSendWhiteboard = (templateId: string) => {
+    sendMessage('> 📝 WHITEBOARD COLABORATIVO ATIVADO', 'whiteboard', { 
+      templateId
     });
   };
   
@@ -394,6 +401,14 @@ export default function AdminPage() {
                         <div className="h-2 w-2 bg-purple-500 rounded-full animate-pulse" />
                     </div>
                     <Image3DPanel isLoading={isLoading} onSend3DImage={handleSend3DImage} />
+                </section>
+
+                <section className="admin-card">
+                    <div className="admin-card-header">
+                        <span>📝 Whiteboard Colaborativo</span>
+                        <div className="h-2 w-2 bg-cyan-500 rounded-full animate-pulse" />
+                    </div>
+                    <WhiteboardPanel isLoading={isLoading} onSendWhiteboard={handleSendWhiteboard} />
                 </section>
 
             </div>

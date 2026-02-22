@@ -23,7 +23,7 @@ import { useSound } from '@/hooks/useSound';
 interface Message {
   id: string;
   content: string;
-  type?: 'text' | 'glitch' | 'vibrate' | 'theme' | 'emp' | 'denied' | 'granted' | 'game' | 'image' | 'image3d' | 'poll';
+  type?: 'text' | 'glitch' | 'vibrate' | 'theme' | 'emp' | 'denied' | 'granted' | 'game' | 'image' | 'image3d' | 'poll' | 'whiteboard';
   payload?: any;
   timestamp: Timestamp;
 }

@@ -3,11 +3,12 @@ import { Timestamp } from 'firebase/firestore';
 import { PollMessage } from './PollMessage';
 import { ImageMessage } from './ImageMessage';
 import { Image3DMessage } from './Image3DMessage';
+import { WhiteboardMessage } from './WhiteboardMessage';
 
 interface Message {
   id: string;
   content: string;
-  type?: 'text' | 'image' | 'image3d' | 'poll' | 'glitch' | 'vibrate' | 'theme';
+  type?: 'text' | 'image' | 'image3d' | 'poll' | 'glitch' | 'vibrate' | 'theme' | 'whiteboard';
   payload?: any;
   timestamp: Timestamp;
 }
@@ -36,7 +37,12 @@ export const TerminalMessageItem = memo(function TerminalMessageItem({
           </span>
           
           <div className="flex-1">
-              {message.type === 'image3d' ? (
+              {message.type === 'whiteboard' ? (
+                 <WhiteboardMessage 
+                   templateId={message.payload?.templateId || ''}
+                   caption={message.content}
+                 />
+              ) : message.type === 'image3d' ? (
                  <Image3DMessage 
                    frontImage={message.payload?.frontImage}
                    backImage={message.payload?.backImage}

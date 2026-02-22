@@ -1,5 +1,5 @@
 
-export type MessageType = 'text' | 'image' | 'audio' | 'glitch' | 'vibrate' | 'poll' | 'theme';
+export type MessageType = 'text' | 'image' | 'audio' | 'glitch' | 'vibrate' | 'poll' | 'theme' | 'image3d' | 'whiteboard';
 
 export interface MessagePayload {
     text?: string;
@@ -10,6 +10,10 @@ export interface MessagePayload {
   allowMultiple?: boolean;
     theme?: 'cyan' | 'green' | 'red' | 'amber';
     autoPlay?: boolean;
+    // Image3D
+    modelUrl?: string;
+    // Whiteboard
+    templateId?: string;
 }
 
 export interface TerminalMessage {
