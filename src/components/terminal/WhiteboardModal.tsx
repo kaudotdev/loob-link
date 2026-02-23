@@ -44,6 +44,7 @@ export function WhiteboardModal({ templateId, onClose }: WhiteboardModalProps) {
   const canvasHandleRef = useRef<WhiteboardCanvasHandle>(null);
   const backgroundImgRef = useRef<HTMLImageElement>(null);
   const currentStrokeRef = useRef<{ x: number; y: number }[]>([]);
+  const canvasContainerRef = useRef<HTMLDivElement>(null);
 
   // Viewport (zoom/pan) gerenciado por hook dedicado
   const {
@@ -206,6 +207,9 @@ export function WhiteboardModal({ templateId, onClose }: WhiteboardModalProps) {
       
       lastTouchDistanceRef.current = distance;
       handlePinchStart(distance, center.x, center.y);
+    } else if (e.touches.length > 2) {
+      // 3+ dedos - cancela qualquer gesto
+      e.preventDefault();
     }
   }, [handlePinchStart]);
 
@@ -218,6 +222,9 @@ export function WhiteboardModal({ templateId, onClose }: WhiteboardModalProps) {
       
       handlePinchMove(distance, center.x, center.y);
       lastTouchDistanceRef.current = distance;
+    } else if (e.touches.length > 2) {
+      // 3+ dedos - previne comportamento padrão
+      e.preventDefault();
     }
   }, [handlePinchMove]);
 
@@ -251,6 +258,58 @@ export function WhiteboardModal({ templateId, onClose }: WhiteboardModalProps) {
       window.removeEventListener('touchend', handleTouchEnd as any);
     };
   }, [handleWheel, handleTouchStart, handleTouchMove, handleTouchEnd]);
+
+  /**
+   * Adiciona listeners de touch específicos na área do canvas
+   * para melhor detecção de pinch zoom
+   */
+  useEffect(() => {
+    const container = canvasContainerRef.current;
+    if (!container) return;
+
+    const handleCanvasTouchStart = (e: TouchEvent) => {
+      if (e.touches.length === 2) {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        const distance = getTouchDistance(e.touches[0], e.touches[1]);
+        const center = getTouchCenter(e.touches[0], e.touches[1]);
+        
+        lastTouchDistanceRef.current = distance;
+        handlePinchStart(distance, center.x, center.y);
+      }
+    };
+
+    const handleCanvasTouchMove = (e: TouchEvent) => {
+      if (e.touches.length === 2 && lastTouchDistanceRef.current) {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        const distance = getTouchDistance(e.touches[0], e.touches[1]);
+        const center = getTouchCenter(e.touches[0], e.touches[1]);
+        
+        handlePinchMove(distance, center.x, center.y);
+        lastTouchDistanceRef.current = distance;
+      }
+    };
+
+    const handleCanvasTouchEnd = (e: TouchEvent) => {
+      if (e.touches.length < 2) {
+        lastTouchDistanceRef.current = null;
+        handlePinchEnd();
+      }
+    };
+
+    container.addEventListener('touchstart', handleCanvasTouchStart, { passive: false });
+    container.addEventListener('touchmove', handleCanvasTouchMove, { passive: false });
+    container.addEventListener('touchend', handleCanvasTouchEnd, { passive: false });
+
+    return () => {
+      container.removeEventListener('touchstart', handleCanvasTouchStart);
+      container.removeEventListener('touchmove', handleCanvasTouchMove);
+      container.removeEventListener('touchend', handleCanvasTouchEnd);
+    };
+  }, [handlePinchStart, handlePinchMove, handlePinchEnd]);
 
   /**
    * Download como PNG
@@ -334,7 +393,10 @@ export function WhiteboardModal({ templateId, onClose }: WhiteboardModalProps) {
       </div>
 
       {/* Canvas Area */}
-      <div className="relative flex-1 bg-[#1a1a1a] overflow-hidden">
+      <div 
+        ref={canvasContainerRef}
+        className="relative flex-1 bg-[#1a1a1a] overflow-hidden"
+      >
         {/* Background Image */}
         {backgroundImage && (
           <img

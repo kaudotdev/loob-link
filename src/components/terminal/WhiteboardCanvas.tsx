@@ -95,6 +95,9 @@ export const WhiteboardCanvas = forwardRef<WhiteboardCanvasHandle, WhiteboardCan
   const currentStrokeRef = useRef<{ x: number; y: number }[]>([]);
   const animationFrameRef = useRef<number | null>(null);
   const lastRenderTimeRef = useRef<number>(0);
+  const lastDrawnIndexRef = useRef<number>(0);
+  const activeTouchesRef = useRef<number>(0);
+  const isDrawingRef = useRef<boolean>(false);
 
   // Configurações de desenho
   const PEN_COLOR = '#000000';
@@ -150,7 +153,40 @@ export const WhiteboardCanvas = forwardRef<WhiteboardCanvasHandle, WhiteboardCan
 
       ctx.restore();
     });
-  }, [elements, baseWidth, baseHeight]);
+
+    // Redesenha o stroke atual se houver
+    const currentPoints = currentStrokeRef.current;
+    if (currentPoints.length > 0) {
+      ctx.save();
+
+      if (currentTool === 'eraser') {
+        ctx.globalCompositeOperation = 'destination-out';
+        ctx.strokeStyle = 'rgba(0,0,0,1)';
+        ctx.lineWidth = ERASER_SIZE;
+      } else {
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.strokeStyle = PEN_COLOR;
+        ctx.lineWidth = PEN_SIZE;
+      }
+
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.beginPath();
+      
+      const startPoint = currentPoints[0];
+      ctx.moveTo(startPoint.x, startPoint.y);
+      
+      for (let i = 1; i < currentPoints.length; i++) {
+        ctx.lineTo(currentPoints[i].x, currentPoints[i].y);
+      }
+      
+      ctx.stroke();
+      ctx.restore();
+
+      // Marca todos os pontos do stroke atual como já desenhados
+      lastDrawnIndexRef.current = currentPoints.length;
+    }
+  }, [elements, baseWidth, baseHeight, currentTool]);
 
   /**
    * Configura resolução do canvas (apenas uma vez ou quando base muda)
@@ -218,7 +254,7 @@ export const WhiteboardCanvas = forwardRef<WhiteboardCanvasHandle, WhiteboardCan
 
   /**
    * Desenha stroke local (enquanto usuário está desenhando)
-   * Usa requestAnimationFrame para performance
+   * Otimizado: desenha apenas novos segmentos desde último frame
    */
   const drawCurrentStroke = useCallback(() => {
     const canvas = canvasRef.current;
@@ -228,13 +264,11 @@ export const WhiteboardCanvas = forwardRef<WhiteboardCanvasHandle, WhiteboardCan
     if (!ctx) return;
 
     const points = currentStrokeRef.current;
-    if (points.length < 1) return;
+    const lastDrawnIndex = lastDrawnIndexRef.current;
+    
+    // Se não há novos pontos, não faz nada
+    if (points.length <= lastDrawnIndex) return;
 
-    // Redesenha todos os elementos + stroke atual
-    // Isso evita efeito pontilhado
-    redrawAll();
-
-    // Desenha o stroke atual completo
     ctx.save();
 
     if (currentTool === 'eraser') {
@@ -251,34 +285,38 @@ export const WhiteboardCanvas = forwardRef<WhiteboardCanvasHandle, WhiteboardCan
     ctx.lineJoin = 'round';
     ctx.beginPath();
     
-    const startPoint = points[0];
-    ctx.moveTo(startPoint.x, startPoint.y);
+    // Começa do último ponto desenhado (ou do início se for o primeiro)
+    if (lastDrawnIndex === 0 && points.length > 0) {
+      ctx.moveTo(points[0].x, points[0].y);
+      lastDrawnIndexRef.current = 1;
+    } else if (lastDrawnIndex > 0) {
+      ctx.moveTo(points[lastDrawnIndex - 1].x, points[lastDrawnIndex - 1].y);
+    }
     
-    for (let i = 1; i < points.length; i++) {
+    // Desenha apenas os novos segmentos
+    for (let i = lastDrawnIndex; i < points.length; i++) {
       ctx.lineTo(points[i].x, points[i].y);
     }
     
     ctx.stroke();
     ctx.restore();
-  }, [currentTool, redrawAll]);
+    
+    // Atualiza índice do último ponto desenhado
+    lastDrawnIndexRef.current = points.length;
+  }, [currentTool]);
 
   /**
-   * Adiciona ponto ao stroke atual (com throttle via requestAnimationFrame)
+   * Adiciona ponto ao stroke atual
+   * Usa requestAnimationFrame para suavidade sem throttle agressivo
    */
   const addPoint = useCallback((x: number, y: number) => {
     currentStrokeRef.current.push({ x, y });
 
-    // Throttle usando requestAnimationFrame
+    // Usa requestAnimationFrame para desenhar no próximo frame
+    // Sem throttle adicional - captura todos os pontos
     if (animationFrameRef.current === null) {
       animationFrameRef.current = requestAnimationFrame(() => {
-        const now = performance.now();
-        
-        // Adicional throttle por tempo (16ms = ~60fps)
-        if (now - lastRenderTimeRef.current >= 16) {
-          drawCurrentStroke();
-          lastRenderTimeRef.current = now;
-        }
-        
+        drawCurrentStroke();
         animationFrameRef.current = null;
       });
     }
@@ -293,6 +331,7 @@ export const WhiteboardCanvas = forwardRef<WhiteboardCanvasHandle, WhiteboardCan
       animationFrameRef.current = null;
     }
     currentStrokeRef.current = [];
+    lastDrawnIndexRef.current = 0;
   }, []);
 
   /**
@@ -377,16 +416,43 @@ export const WhiteboardCanvas = forwardRef<WhiteboardCanvasHandle, WhiteboardCan
    */
   const handlePointerDown = useCallback((e: React.PointerEvent) => {
     if (locked) return;
+    
+    // Incrementa contador de toques ativos
+    activeTouchesRef.current++;
+    
+    // Só desenha se for 1 toque apenas
+    if (activeTouchesRef.current > 1) {
+      // Múltiplos toques - cancela desenho se estava em andamento
+      if (isDrawingRef.current) {
+        isDrawingRef.current = false;
+        currentStrokeRef.current = [];
+        lastDrawnIndexRef.current = 0;
+      }
+      return;
+    }
+    
+    // Previne scroll no mobile
+    e.preventDefault();
 
     const coords = getCanvasCoords(e.clientX, e.clientY);
     if (!coords) return;
 
+    isDrawingRef.current = true;
     currentStrokeRef.current = [coords];
+    lastDrawnIndexRef.current = 0;
     onDrawStart?.(coords.x, coords.y);
   }, [locked, getCanvasCoords, onDrawStart]);
 
   const handlePointerMove = useCallback((e: React.PointerEvent) => {
-    if (locked || currentStrokeRef.current.length === 0) return;
+    if (locked) return;
+    
+    // Não desenha se houver múltiplos toques ou se não estiver desenhando
+    if (activeTouchesRef.current > 1 || !isDrawingRef.current || currentStrokeRef.current.length === 0) {
+      return;
+    }
+    
+    // Previne scroll no mobile
+    e.preventDefault();
 
     const coords = getCanvasCoords(e.clientX, e.clientY);
     if (!coords) return;
@@ -395,12 +461,29 @@ export const WhiteboardCanvas = forwardRef<WhiteboardCanvasHandle, WhiteboardCan
     onDrawMove?.(coords.x, coords.y);
   }, [locked, getCanvasCoords, addPoint, onDrawMove]);
 
-  const handlePointerUp = useCallback(() => {
-    if (locked || currentStrokeRef.current.length === 0) return;
+  const handlePointerUp = useCallback((e: React.PointerEvent) => {
+    // Decrementa contador de toques ativos
+    activeTouchesRef.current = Math.max(0, activeTouchesRef.current - 1);
+    
+    if (locked || !isDrawingRef.current || currentStrokeRef.current.length === 0) return;
 
-    finishStroke();
-    onDrawEnd?.();
+    // Só finaliza se não houver mais toques ativos
+    if (activeTouchesRef.current === 0) {
+      isDrawingRef.current = false;
+      finishStroke();
+      onDrawEnd?.();
+    }
   }, [locked, finishStroke, onDrawEnd]);
+
+  const handlePointerCancel = useCallback(() => {
+    // Cancela desenho e reseta contadores
+    activeTouchesRef.current = 0;
+    isDrawingRef.current = false;
+    
+    if (currentStrokeRef.current.length > 0) {
+      finishStroke();
+    }
+  }, [finishStroke]);
 
   /**
    * CSS transform para zoom/pan
@@ -418,17 +501,18 @@ export const WhiteboardCanvas = forwardRef<WhiteboardCanvasHandle, WhiteboardCan
     >
       <canvas
         ref={canvasRef}
-        className="touch-none"
         style={{
           cursor: locked ? 'default' : cursor,
           transform: containerTransform,
           transformOrigin: 'center center',
-          imageRendering: 'auto'
+          imageRendering: 'auto',
+          touchAction: 'none'
         }}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onPointerLeave={handlePointerUp}
+        onPointerCancel={handlePointerCancel}
       />
     </div>
   );
