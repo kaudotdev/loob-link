@@ -228,12 +228,13 @@ export const WhiteboardCanvas = forwardRef<WhiteboardCanvasHandle, WhiteboardCan
     if (!ctx) return;
 
     const points = currentStrokeRef.current;
-    if (points.length < 2) return;
+    if (points.length < 1) return;
 
-    // Desenha apenas o último segmento (incremental)
-    const lastPoint = points[points.length - 2];
-    const currentPoint = points[points.length - 1];
+    // Redesenha todos os elementos + stroke atual
+    // Isso evita efeito pontilhado
+    redrawAll();
 
+    // Desenha o stroke atual completo
     ctx.save();
 
     if (currentTool === 'eraser') {
@@ -249,12 +250,17 @@ export const WhiteboardCanvas = forwardRef<WhiteboardCanvasHandle, WhiteboardCan
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
     ctx.beginPath();
-    ctx.moveTo(lastPoint.x, lastPoint.y);
-    ctx.lineTo(currentPoint.x, currentPoint.y);
+    
+    const startPoint = points[0];
+    ctx.moveTo(startPoint.x, startPoint.y);
+    
+    for (let i = 1; i < points.length; i++) {
+      ctx.lineTo(points[i].x, points[i].y);
+    }
+    
     ctx.stroke();
-
     ctx.restore();
-  }, [currentTool]);
+  }, [currentTool, redrawAll]);
 
   /**
    * Adiciona ponto ao stroke atual (com throttle via requestAnimationFrame)
@@ -316,24 +322,52 @@ export const WhiteboardCanvas = forwardRef<WhiteboardCanvasHandle, WhiteboardCan
   /**
    * Converte posição do mouse/touch para coordenadas base
    * CRÍTICO: Esta conversão garante consistência entre dispositivos
+   * 
+   * O canvas tem transform CSS aplicado: scale(S) translate(Tx/S, Ty/S)
+   * Precisamos desfazer esse transform para obter coordenadas corretas
    */
   const getCanvasCoords = useCallback((clientX: number, clientY: number): { x: number; y: number } | null => {
     const canvas = canvasRef.current;
     if (!canvas) return null;
 
+    // Rect com transform aplicado
     const rect = canvas.getBoundingClientRect();
+    
+    // Tamanho CSS do canvas (antes do transform)
+    const cssWidth = parseFloat(canvas.style.width || '0');
+    const cssHeight = parseFloat(canvas.style.height || '0');
+    
+    if (cssWidth === 0 || cssHeight === 0) return null;
 
-    // 1. Posição relativa no canvas renderizado (0-1)
-    const relX = (clientX - rect.left) / rect.width;
-    const relY = (clientY - rect.top) / rect.height;
+    // Centro do canvas (no espaço da tela, com transform)
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
 
-    // 2. Ajusta pelo viewport (zoom e pan)
-    const adjustedX = (relX - 0.5) / viewport.scale - (viewport.offsetX / viewport.scale / rect.width) + 0.5;
-    const adjustedY = (relY - 0.5) / viewport.scale - (viewport.offsetY / viewport.scale / rect.height) + 0.5;
+    // Posição relativa ao centro (no espaço transformado)
+    const dx = clientX - centerX;
+    const dy = clientY - centerY;
 
-    // 3. Converte para coordenadas base (pixels da resolução natural)
-    const baseX = adjustedX * baseWidth;
-    const baseY = adjustedY * baseHeight;
+    // Desfaz o scale (divide pela escala)
+    const unscaledDx = dx / viewport.scale;
+    const unscaledDy = dy / viewport.scale;
+
+    // Desfaz o translate
+    const finalDx = unscaledDx - viewport.offsetX;
+    const finalDy = unscaledDy - viewport.offsetY;
+
+    // Volta para coordenadas absolutas (espaço CSS do canvas)
+    const canvasCenterX = cssWidth / 2;
+    const canvasCenterY = cssHeight / 2;
+    
+    const canvasX = canvasCenterX + finalDx;
+    const canvasY = canvasCenterY + finalDy;
+
+    // Converte para coordenadas base (normaliza e multiplica pela resolução interna)
+    const relX = canvasX / cssWidth;
+    const relY = canvasY / cssHeight;
+
+    const baseX = relX * baseWidth;
+    const baseY = relY * baseHeight;
 
     return { x: baseX, y: baseY };
   }, [viewport, baseWidth, baseHeight]);
