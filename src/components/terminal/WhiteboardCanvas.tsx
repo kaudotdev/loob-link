@@ -102,22 +102,6 @@ export const WhiteboardCanvas = forwardRef<WhiteboardCanvasHandle, WhiteboardCan
   const ERASER_SIZE = 20;
 
   /**
-   * Configura resolução do canvas (apenas uma vez ou quando base muda)
-   */
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas || baseWidth === 0 || baseHeight === 0) return;
-
-    // Define resolução interna do canvas = resolução base
-    if (canvas.width !== baseWidth || canvas.height !== baseHeight) {
-      canvas.width = baseWidth;
-      canvas.height = baseHeight;
-      
-      console.log(`🎨 Canvas resolution set to: ${baseWidth}x${baseHeight}px`);
-    }
-  }, [baseWidth, baseHeight]);
-
-  /**
    * Redesenha todos os elementos no canvas
    * Chamado quando elementos mudam ou após zoom/pan
    */
@@ -167,6 +151,63 @@ export const WhiteboardCanvas = forwardRef<WhiteboardCanvasHandle, WhiteboardCan
       ctx.restore();
     });
   }, [elements, baseWidth, baseHeight]);
+
+  /**
+   * Configura resolução do canvas (apenas uma vez ou quando base muda)
+   */
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas || baseWidth === 0 || baseHeight === 0) return;
+
+    // Define resolução interna do canvas = resolução base
+    if (canvas.width !== baseWidth || canvas.height !== baseHeight) {
+      canvas.width = baseWidth;
+      canvas.height = baseHeight;
+      
+      console.log(`🎨 Canvas resolution set to: ${baseWidth}x${baseHeight}px`);
+    }
+  }, [baseWidth, baseHeight]);
+
+  /**
+   * Ajusta tamanho CSS do canvas para corresponder ao tamanho renderizado da imagem
+   */
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    const container = containerRef.current;
+    if (!canvas || !container || baseWidth === 0 || baseHeight === 0) return;
+
+    const resizeCanvas = () => {
+      const containerRect = container.getBoundingClientRect();
+      const containerWidth = containerRect.width;
+      const containerHeight = containerRect.height;
+      const imageAspect = baseWidth / baseHeight;
+      const containerAspect = containerWidth / containerHeight;
+
+      let renderWidth: number, renderHeight: number;
+
+      // Calcula tamanho de renderização (object-contain)
+      if (containerAspect > imageAspect) {
+        // Container mais largo - limita pela altura
+        renderHeight = containerHeight;
+        renderWidth = renderHeight * imageAspect;
+      } else {
+        // Container mais alto - limita pela largura
+        renderWidth = containerWidth;
+        renderHeight = renderWidth / imageAspect;
+      }
+
+      // Define tamanho CSS (não afeta resolução interna)
+      canvas.style.width = `${renderWidth}px`;
+      canvas.style.height = `${renderHeight}px`;
+
+      // Redesenha após resize
+      redrawAll();
+    };
+
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+    return () => window.removeEventListener('resize', resizeCanvas);
+  }, [baseWidth, baseHeight, redrawAll]);
 
   /**
    * Redesenha quando elementos mudam
@@ -339,7 +380,7 @@ export const WhiteboardCanvas = forwardRef<WhiteboardCanvasHandle, WhiteboardCan
     <div
       ref={containerRef}
       className="absolute inset-0 flex items-center justify-center overflow-hidden"
-      style={{ backgroundColor: '#1a1a1a' }}
+      style={{ backgroundColor: 'transparent' }}
     >
       <canvas
         ref={canvasRef}
@@ -348,9 +389,7 @@ export const WhiteboardCanvas = forwardRef<WhiteboardCanvasHandle, WhiteboardCan
           cursor: locked ? 'default' : cursor,
           transform: containerTransform,
           transformOrigin: 'center center',
-          maxWidth: '100%',
-          maxHeight: '100%',
-          imageRendering: 'crisp-edges'
+          imageRendering: 'auto'
         }}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}

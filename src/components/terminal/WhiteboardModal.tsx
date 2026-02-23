@@ -335,7 +335,7 @@ export function WhiteboardModal({ templateId, onClose }: WhiteboardModalProps) {
 
       {/* Canvas Area */}
       <div className="relative flex-1 bg-[#1a1a1a] overflow-hidden">
-        {/* Background Image (hidden, apenas para carregar) */}
+        {/* Background Image */}
         {backgroundImage && (
           <img
             ref={backgroundImgRef}
@@ -345,14 +345,15 @@ export function WhiteboardModal({ templateId, onClose }: WhiteboardModalProps) {
             crossOrigin="anonymous"
             style={{ 
               transform: `scale(${viewport.scale}) translate(${viewport.offsetX / viewport.scale}px, ${viewport.offsetY / viewport.scale}px)`,
-              transformOrigin: 'center center'
+              transformOrigin: 'center center',
+              zIndex: 1
             }}
           />
         )}
 
-        {/* Canvas Whiteboard */}
+        {/* Canvas Whiteboard (acima da imagem) */}
         {baseWidth > 0 && baseHeight > 0 && (
-          <div className="absolute inset-0">
+          <div className="absolute inset-0" style={{ zIndex: 2 }}>
             <WhiteboardCanvas
               ref={canvasHandleRef}
               baseWidth={baseWidth}
